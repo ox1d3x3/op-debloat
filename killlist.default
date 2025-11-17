@@ -1,0 +1,74 @@
+# Oppo Ads Kill (X1) - killlist.default (v0.1.1)
+# -------------------------------------
+# This is the DEFAULT list of packages the module will target.
+# On first boot, this file is copied to killlist.txt.
+#
+# HOW TO USE:
+#   - Edit killlist.txt (not this file) to customise.
+#   - Lines starting with # are comments and are ignored.
+#   - To disable/remove a package, add its package name on a new line.
+#   - To temporarily spare a package, put it in excludelist.txt instead.
+#
+# SAFETY:
+#   - By default we now hit:
+#       - com.oppo.ads        (core Oppo ads engine)
+#       - com.heytap.market   (HeyTap App Market store + promos)
+#   - More aggressive options are provided as COMMENTED examples.
+#   - Uncomment only if you know you don't need that app/feature.
+#
+# MODE:
+#   - Default mode is "disable" (pm disable-user --user 0).
+#   - To switch to uninstall-mode, create/edit mode.conf in the module folder:
+#       MODE=uninstall
+#     or:
+#       MODE=disable
+#
+# -------------------------------------
+# CORE ADS ENGINE + APP MARKET (active by default)
+# -------------------------------------
+
+com.oppo.ads
+com.heytap.market
+
+# -------------------------------------
+# RECOMMENDED (IF YOU DON'T USE STOCK BROWSER / APP MARKET)
+# Uncomment if you use third-party browser & store only.
+# -------------------------------------
+# com.heytap.browser          # HeyTap / Oppo browser (contains promos/feeds)
+# com.coloros.browser         # ColorOS browser variant
+
+# -------------------------------------
+# ONLINE CONTENT / PROMO HUBS (CN / OPlus services)
+# Often used for content cards, recommendations, and online config.
+# -------------------------------------
+# com.oplus.contentportal
+# com.heytap.pictorial
+# com.heytap.reader
+# com.heytap.music
+
+# -------------------------------------
+# MEDIA EXTRAS (if unused, can be disabled to reduce noise)
+# -------------------------------------
+# com.coloros.video
+# com.coloros.karaoke
+# andes.oplus.documentsreader
+
+# -------------------------------------
+# OPPO / HEYTAP ECO SYSTEM (OPTIONAL)
+# If you don't use wearables / carlink / VIP etc.
+# -------------------------------------
+# com.heytap.accessory
+# com.heytap.mydevices
+# com.heytap.vip
+# com.heytap.yoli
+# com.heytap.opluscarlink
+# com.oplus.ocar
+# com.oplus.pay
+# com.oplus.omoji
+# com.oppo.ctautoregist
+
+# -------------------------------------
+# NOTES:
+# - You can add ANY extra Oppo/ColorOS bloat/ads packages here.
+# - If something breaks, add the package name to excludelist.txt and reboot.
+# -------------------------------------

@@ -1,0 +1,8 @@
+# Oppo Ads Kill (X1) - excludelist.txt
+# Any package name listed here will NEVER be disabled/uninstalled
+# even if it appears in killlist.txt.
+#
+# Use this as a "safety override" if you find something you actually need.
+#
+# Example:
+# com.heytap.market

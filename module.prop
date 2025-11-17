@@ -1,0 +1,6 @@
+id=oppo.ads.kill.x1
+name=Oppo Ads Kill (X1)
+version=v0.1.1
+versionCode=11
+author=Ox1d3x3
+description=Systemless Oppo/ColorOS ads-disabler engine using configurable killlists. Now targets com.oppo.ads + com.heytap.market by default.
