@@ -1,74 +1,83 @@
 # Debloater – Oppo/ColorOS (CN) by Ox1d3x3
 
-Root-friendly, **list-based debloater** for Oppo/ColorOS (CN) devices.
+**Systemless, profile-based debloater for Oppo / OnePlus / Realme devices running ColorOS CN.**  
+Instead of uninstalling apps, it uses `pm disable-user --user 0` so everything is **reversible** and **OTA-friendly**.
 
-- Uses `pm disable-user` / `pm enable` (user `0` only)
-- No `/system` or `/product` changes
-- No background daemons or battery drain
-- Profiles live on `/sdcard/debloater` so you can edit them with any file manager
-- Works with **Magisk / KernelSU / APatch** (or any root manager that mounts `/system/bin`)
+- ✅ Works with **Magisk**, **KernelSU**, and **APatch**
+- ✅ Targets **ColorOS CN** bloat (Oppo/HeyTap ecosystem / CN extras)
+- ✅ Debloat lists live in **`/sdcard/debloater`** (easy to edit)
+- ✅ Includes **restore** options and **OTA updates**
+
+> **Current version:** `v0.3.6` (`versionCode 306`)
 
 ---
 
 ## ✨ Features
 
-- **Systemless, reversible debloat**
-  - Disables packages via `pm disable-user --user 0`
-  - Restores via `pm enable --user 0`
-- **Profile-driven**
-  - Simple `.list` files on `/sdcard/debloater`
-  - Commented, easy to edit, one package per line
-- **Safe defaults for ColorOS CN bloat**
-  - Oppo ads, HeyTap store, CN browser, CN media, ecosystem fluff
-  - No launcher / SystemUI / telephony / core Google services
-- **Full restore in one shot**
-  - New “restore everything I disabled with this module” option
-- **Manual OTA-style update check**
-  - Checks latest GitHub release, compares to local version
-- **Zero background activity**
-  - No `service.sh` work
-  - No `post-fs-data` hacks
-  - Nothing runs until *you* run `debloater`
+- **Safe debloat via `pm disable-user --user 0`**
+  - No APK deletion, no `/system` modification.
+  - System apps are simply disabled for **user 0**.
+- **Profile-based debloating**
+  - All debloat rules live in `/sdcard/debloater/*.list`.
+  - You can maintain different sets (minimal, aggressive, CN-only, etc.).
+- **Systemless & root-manager agnostic**
+  - Install as a standard module in **Magisk**, **KernelSU**, or **APatch**.
+- **Interactive CLI (`debloater`)**
+  - TUI menu for disabling/enabling packages using profiles.
+  - Full restore from log if you went too far.
+- **Restore options**
+  - Restore **specific profile** (enable all packages listed).
+  - Restore **everything this module disabled** by reading its own log.
+  - Restore **default profiles** shipped with the module.
+- **OTA-friendly**
+  - Uses `updateJson` to support in-app updates from KernelSU / Magisk.
+  - Also supports manual update check from CLI.
 
 ---
 
-## ⚠️ Warnings & Safety Notes
+## ⚠️ Warnings & Disclaimer
 
-> **Read this before you use it.**
+- **You can still break stuff** by disabling the wrong packages.
+  - Don’t blindly paste random online lists into `disable.list`.
+  - Start with the **safe defaults** and test gradually.
+- This module is focused on **Oppo / ColorOS CN** stacks (including some OnePlus/Realme CN builds).
+  - Global ROMs may have different package names or dependencies.
+- You are responsible for your own device:
+  - Make backups where possible (e.g. TWRP / full backup).
+  - If you don’t understand a package, **don’t disable it**.
+- Root is required. Tested on Android 12–16 with Magisk / KernelSU style root managers.
 
-- This tool touches **system apps** via package manager. If you add the wrong package to your lists, you *can*:
-  - Break notifications, camera, calls, etc.
-  - Soft-brick the ROM enough that only a factory reset or reflash fixes it.
-- The default profiles are conservative, but **anything you add yourself is your responsibility**.
-- **Module uninstall does _not_ automatically re-enable apps.**
-  - Android remembers `pm disable-user` state even after the module is gone.
-  - If you want everything back, you **must** run the **“Full restore (from log)”** option *before* disabling/uninstalling the module.
-- Always:
-  - Make a backup / have recovery or fastboot tools ready.
-  - Test in small batches if you’re unsure.
-  - Avoid disabling obvious core stuff (SystemUI, Settings, Telephony, Google Play Services, etc).
-
-You use this at your own risk. It’s designed to be as safe as possible, but it is still a **power tool**.
+Use at your own risk. No warranty, no guaranteed safety if you go wild with profiles.
 
 ---
 
 ## ✅ Requirements
 
-- Rooted Android device (Oppo / OnePlus / Realme on **ColorOS/HyperOS-style** base)
-- Android 12–16 recommended
-- One of:
-  - [Magisk](https://github.com/topjohnwu/Magisk)
-  - [KernelSU](https://github.com/tiann/KernelSU)
-  - [APatch](https://github.com/bmax121/APatch)
-- A terminal:
-  - Termux on device, or
-  - `adb shell` from PC
+- Rooted device with **one** of:
+  - **Magisk 24+**
+  - **KernelSU**
+  - **APatch**
+- Oppo / OnePlus / Realme device running **ColorOS CN** (or very close variant).
+- Basic familiarity with:
+  - Terminal / ADB shell
+  - Editing text files on Android (e.g. via a file manager or Termux)
 
 ---
 
 ## 📦 Installation
 
-1. Download the latest release `.zip` from:
+### 1. Flash as a module
 
-   ```text
-   https://github.com/ox1d3x3/op-debloat/releases
+1. Download the latest release ZIP from the **Releases** page:
+
+   - `Debloater-OppoColorOS-CN-by-Ox1d3x3-v0.3.6.zip` (or newer)
+
+2. In your root manager:
+
+   - **Magisk**:
+     - Modules → Install from storage → pick the ZIP → reboot.
+   - **KernelSU**:
+     - Modules → Add → pick the ZIP → reboot.
+   - **APatch**:
+     - Install module from storage → reboot.
+
