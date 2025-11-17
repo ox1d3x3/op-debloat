@@ -1,0 +1,8 @@
+id=debloater_systemless_x1
+name=Debloater - Oppo/ColorOS (CN)
+version=0.3.4
+versionCode=34
+author=Ox1d3x3
+description=pm disable/enable debloater for Oppo/ColorOS (CN). Uses list-based sets and user 0 package state only.
+minMagisk=24.0
+template=3
