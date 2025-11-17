@@ -1,0 +1,45 @@
+# NAME: cn_ecosystem
+# Extended CN ecosystem set for ColorOS 16 (CN).
+# Includes browser, AI stack, media, and ecosystem services.
+
+# Ads & store
+com.oppo.ads
+com.heytap.market
+
+# CN browser
+com.heytap.browser
+com.coloros.browser
+
+# Breeno / AI stack
+com.heytap.speechassist
+com.oplus.ovoicemanager
+com.oplus.ovoicemanager.wakeup
+com.oplus.aicall
+com.oplus.aiwriter
+com.oplus.aiwidgets
+com.oplus.aiunit
+com.oplus.obrain
+com.oplus.deepthinker
+com.oplus.metis
+com.oplus.matrix
+com.oplus.atlas
+
+# CN media & extras
+com.heytap.music
+com.heytap.reader
+com.heytap.pictorial
+com.coloros.video
+com.coloros.karaoke
+andes.oplus.documentsreader
+
+# Oppo ecosystem
+com.heytap.accessory
+com.heytap.mydevices
+com.heytap.vip
+com.heytap.yoli
+com.oppo.ctautoregist
+com.oplus.contentportal
+com.oplus.pay
+com.oplus.omoji
+com.oplus.ocar
+com.heytap.opluscarlink

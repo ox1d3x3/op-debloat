@@ -1,0 +1,458 @@
+#!/system/bin/sh
+# Debloater - Oppo/ColorOS (CN) by Ox1d3x3
+# Disable/enable based debloat using list files on /sdcard/debloater.
+
+MODVERSION="0.3.4"
+MODID="debloater_systemless_x1"
+
+# Locate module directory
+for base in /data/adb/modules /data/adb/modules_update; do
+  if [ -d "$base/$MODID" ]; then
+    MODDIR="$base/$MODID"
+    break
+  fi
+done
+
+[ -z "$MODDIR" ] && MODDIR="/data/adb/modules/$MODID"
+
+INTERNAL_DEBLOAT_DIR="$MODDIR/debloat"
+
+SDROOT="${EXTERNAL_STORAGE:-/sdcard}"
+DEBLOAT_DIR="$SDROOT/debloater"
+
+LOGFILE="$MODDIR/debloater_disable.log"
+
+log() {
+  mkdir -p "$MODDIR"
+  echo "$(date '+%Y-%m-%d %H:%M:%S')  $*" >> "$LOGFILE"
+}
+
+detect_env() {
+  DEVICE="$(getprop ro.product.model)"
+  [ -z "$DEVICE" ] && DEVICE="$(getprop ro.product.product.model)"
+  ANDROID_VER="$(getprop ro.build.version.release)"
+  [ -z "$ANDROID_VER" ] && ANDROID_VER="$(getprop ro.system.build.version.release)"
+
+  ROOTMGR="Unknown"
+  if [ -d /data/adb/magisk ] || getprop persist.magisk.version >/dev/null 2>&1 || command -v magisk >/dev/null 2>&1; then
+    ROOTMGR="Magisk"
+  elif [ -d /data/adb/ksu ] || getprop persist.ksu.version >/dev/null 2>&1; then
+    ROOTMGR="KernelSU"
+  elif [ -d /data/adb/ap ] || getprop persist.apatch.version >/dev/null 2>&1; then
+    ROOTMGR="APatch"
+  fi
+}
+
+banner() {
+  detect_env
+  echo "===================================================="
+  echo "        Debloater - Oppo/ColorOS (CN) by Ox1d3x3"
+  echo "                 Version v$MODVERSION"
+  echo "                 Github: @ox1d3x3"
+  echo "                   __   __  __ "
+  echo "                  \ \ / / /_ |"
+  echo "                   \ V /   | |"
+  echo "                    > <    | |"
+  echo "                   / . \   | |"
+  echo "                  /_/ \_\  |_|"
+  echo "===================================================="
+  echo " Device   : ${DEVICE:-unknown}"
+  echo " Android  : ${ANDROID_VER:-unknown}"
+  echo " Root     : ${ROOTMGR:-unknown}"
+  echo " List dir : /sdcard/debloater"
+  echo " ModuleID : debloater_systemless_x1"
+}
+
+ensure_root() {
+  if [ "$(id -u)" != "0" ]; then
+    echo "[X] Run as root (su)."
+    exit 1
+  fi
+}
+
+ensure_pm() {
+  if ! command -v pm >/dev/null 2>&1; then
+    echo "[X] 'pm' command not found."
+    echo "    Use a full Android shell (adb shell or Termux + su)."
+    exit 1
+  fi
+}
+
+init_debloat_dir() {
+  if [ ! -d "$DEBLOAT_DIR" ]; then
+    mkdir -p "$DEBLOAT_DIR"
+  fi
+
+  # If no .list files on /sdcard/debloater, copy templates
+  if ! ls "$DEBLOAT_DIR"/*.list >/dev/null 2>&1; then
+    if [ -d "$INTERNAL_DEBLOAT_DIR" ]; then
+      cp "$INTERNAL_DEBLOAT_DIR"/*.list "$DEBLOAT_DIR"/ 2>/dev/null
+    fi
+  else
+    # Ensure specific templates exist if missing
+    for f in disable.list cn_ecosystem.list coloros16_reference.list; do
+      if [ -f "$INTERNAL_DEBLOAT_DIR/$f" ] && [ ! -f "$DEBLOAT_DIR/$f" ]; then
+        cp "$INTERNAL_DEBLOAT_DIR/$f" "$DEBLOAT_DIR/$f"
+      fi
+    done
+  fi
+}
+
+pause() {
+  printf "\nPress Enter to continue... "
+  read _dummy 2>/dev/null
+}
+
+list_sets() {
+  if [ ! -d "$DEBLOAT_DIR" ]; then
+    echo "[X] Debloat directory not found:"
+    echo "    $DEBLOAT_DIR"
+    return 1
+  fi
+
+  SETS=$(ls "$DEBLOAT_DIR"/*.list 2>/dev/null)
+  if [ -z "$SETS" ]; then
+    echo "[X] No .list files found in:"
+    echo "    $DEBLOAT_DIR"
+    return 1
+  fi
+
+  idx=1
+  for f in $SETS; do
+    name="$(basename "$f")"
+    title=""
+    if [ -r "$f" ]; then
+      first_comment=$(grep -m1 '^# *NAME:' "$f" 2>/dev/null)
+      if [ -n "$first_comment" ]; then
+        title=$(echo "$first_comment" | cut -d: -f2- | sed 's/^ *//')
+      fi
+    fi
+    [ -z "$title" ] && title="$name"
+    echo "  [$idx] $title"
+    eval "SET_$idx=\"$f\""
+    idx=$((idx + 1))
+  done
+  SET_COUNT=$((idx - 1))
+
+  return 0
+}
+
+select_set() {
+  echo ""
+  echo "Debloat sets (from $DEBLOAT_DIR):"
+  echo "---------------------------------"
+  if ! list_sets; then
+    return 1
+  fi
+
+  echo ""
+  printf "Select set number (0 = cancel): "
+  read choice
+
+  case "$choice" in
+    ""|0)
+      echo "Cancelled."
+      return 1
+      ;;
+  esac
+
+  case "$choice" in
+    *[!0-9]*)
+      echo "[X] Invalid choice."
+      return 1
+      ;;
+  esac
+
+  if [ "$choice" -lt 1 ] || [ "$choice" -gt "$SET_COUNT" ]; then
+    echo "[X] Choice out of range."
+    return 1
+  fi
+
+  eval "SET_FILE=\"\$SET_$choice\""
+  if [ ! -f "$SET_FILE" ]; then
+    echo "[X] Selected set file not found."
+    return 1
+  fi
+
+  SET_NAME="$(basename "$SET_FILE")"
+  echo ""
+  echo "Selected set: $SET_NAME"
+  echo "Path: $SET_FILE"
+  return 0
+}
+
+apply_set_disable() {
+  file="$1"
+  echo ""
+  echo "Mode: disable (pm disable-user --user 0)"
+  echo ""
+
+  total=0
+  disabled=0
+  skipped=0
+
+  while IFS= read -r line || [ -n "$line" ]; do
+    pkg="$(echo "$line" | tr -d '\r' | sed 's/#.*$//' | sed 's/^ *//;s/ *$//')"
+    [ -z "$pkg" ] && continue
+
+    total=$((total + 1))
+
+    if ! pm path "$pkg" >/dev/null 2>&1; then
+      echo " - skip (not installed): $pkg"
+      log "SKIP not_installed $pkg"
+      skipped=$((skipped + 1))
+      continue
+    fi
+
+    if pm disable-user --user 0 "$pkg" >/dev/null 2>&1; then
+      echo " - disabled: $pkg"
+      log "DISABLE_OK $pkg"
+      disabled=$((disabled + 1))
+    else
+      echo " - failed: $pkg"
+      log "DISABLE_FAIL $pkg"
+    fi
+  done < "$file"
+
+  echo ""
+  echo "Summary:"
+  echo "  entries : $total"
+  echo "  disabled: $disabled"
+  echo "  missing : $skipped"
+}
+
+apply_set_enable() {
+  file="$1"
+  echo ""
+  echo "Mode: restore (pm enable --user 0)"
+  echo ""
+
+  total=0
+  enabled=0
+  skipped=0
+
+  while IFS= read -r line || [ -n "$line" ]; do
+    pkg="$(echo "$line" | tr -d '\r' | sed 's/#.*$//' | sed 's/^ *//;s/ *$//')"
+    [ -z "$pkg" ] && continue
+
+    total=$((total + 1))
+
+    if ! pm path "$pkg" >/dev/null 2>&1; then
+      echo " - skip (not installed): $pkg"
+      log "RESTORE_SKIP not_installed $pkg"
+      skipped=$((skipped + 1))
+      continue
+    fi
+
+    if pm enable --user 0 "$pkg" >/dev/null 2>&1; then
+      echo " - enabled: $pkg"
+      log "ENABLE_OK $pkg"
+      enabled=$((enabled + 1))
+    else
+      echo " - failed: $pkg"
+      log "ENABLE_FAIL $pkg"
+    fi
+  done < "$file"
+
+  echo ""
+  echo "Summary:"
+  echo "  entries : $total"
+  echo "  enabled : $enabled"
+  echo "  missing : $skipped"
+}
+
+
+check_updates() {
+  echo ""
+  echo "Update check (GitHub releases)"
+  echo "------------------------------"
+  REPO="ox1d3x3/op-debloat"
+  API_URL="https://api.github.com/repos/$REPO/releases/latest"
+
+  if command -v curl >/dev/null 2>&1; then
+    RESP="$(curl -sL "$API_URL")"
+  elif command -v wget >/dev/null 2>&1; then
+    RESP="$(wget -qO- "$API_URL")"
+  else:
+    echo "[X] curl/wget not available. Cannot check for updates."
+    return 1
+  fi
+
+  if [ -z "$RESP" ]; then
+    echo "[X] Empty response from GitHub. Network or API issue."
+    return 1
+  fi
+
+  # Extract tag_name from JSON (e.g. \"tag_name\": \"v0.3.1\")
+  REMOTE_TAG="$(echo "$RESP" | sed -n 's/ *\"tag_name\": *\"\\(.*\\)\",/\\1/p' | head -n 1)"
+  if [ -z "$REMOTE_TAG" ]; then
+    echo "[X] Could not parse remote version (tag_name)."
+    return 1
+  fi
+
+  # Strip leading v/V if present
+  REMOTE_VER="${REMOTE_TAG#v}"
+  REMOTE_VER="${REMOTE_VER#V}"
+
+  LOCAL_VER="${MODVERSION#v}"
+
+  echo " Local version : $LOCAL_VER"
+  echo " Remote version: $REMOTE_VER (tag: $REMOTE_TAG)"
+
+  # Compare semantic versions: a.b.c (numeric)
+  ver_to_ints() {
+    v="$1"
+    IFS='.' read -r a b c <<EOF
+$v
+EOF
+    [ -z "$a" ] && a=0
+    [ -z "$b" ] && b=0
+    [ -z "$c" ] && c=0
+    echo "$a $b $c"
+  }
+
+  set -- $(ver_to_ints "$LOCAL_VER")
+  LA=$1; LB=$2; LC=$3
+  set -- $(ver_to_ints "$REMOTE_VER")
+  RA=$1; RB=$2; RC=$3
+
+  if [ "$RA" -gt "$LA" ] || { [ "$RA" -eq "$LA" ] && [ "$RB" -gt "$LB" ]; } || { [ "$RA" -eq "$LA" ] && [ "$RB" -eq "$LB" ] && [ "$RC" -gt "$LC" ]; }; then
+    echo ""
+    echo "Update available:"
+    echo " - Installed: $LOCAL_VER"
+    echo " - Latest   : $REMOTE_VER"
+    echo ""
+    echo "Download from:"
+    echo " https://github.com/$REPO/releases/latest"
+  else
+    echo ""
+    echo "No update available. You are on the latest known version."
+  fi
+}
+
+
+restore_all_from_log() {
+  echo ""
+  echo "Full restore from log"
+  echo "---------------------"
+
+  if [ ! -f "$LOGFILE" ]; then
+    echo "[X] Log file not found:"
+    echo "    $LOGFILE"
+    echo "Cannot determine what this module disabled."
+    return 1
+  fi
+
+  # Extract unique package names from DISABLE_OK lines
+  PKGS=$(grep "DISABLE_OK" "$LOGFILE" 2>/dev/null | awk '{print $NF}' | sort -u)
+
+  if [ -z "$PKGS" ]; then
+    echo "[i] No DISABLE_OK entries found in log."
+    echo "    Nothing to restore."
+    return 0
+  fi
+
+  total=0
+  enabled=0
+  missing=0
+
+  for pkg in $PKGS; do
+    total=$((total + 1))
+
+    if ! pm path "$pkg" >/dev/null 2>&1; then
+      echo " - skip (not installed): $pkg"
+      missing=$((missing + 1))
+      continue
+    fi
+
+    if pm enable --user 0 "$pkg" >/dev/null 2>&1; then
+      echo " - enabled: $pkg"
+      enabled=$((enabled + 1))
+      log "ENABLE_FROM_LOG_OK $pkg"
+    else
+      echo " - failed: $pkg"
+      log "ENABLE_FROM_LOG_FAIL $pkg"
+    fi
+  done
+
+  echo ""
+  echo "Summary:"
+  echo "  from log : $total"
+  echo "  enabled  : $enabled"
+  echo "  missing  : $missing"
+  echo ""
+  echo "Note: This only restores packages that this module successfully disabled"
+  echo "      while logging DISABLE_OK in:"
+  echo "      $LOGFILE"
+}
+
+main_menu() {
+  while true; do
+    echo ""
+    echo "Main menu"
+    echo "---------"
+    echo "  1) Disable packages (debloat set)"
+    echo "  2) Enable/restore packages (debloat set)"
+    echo "  0) Exit"
+    echo ""
+    printf "Choice: "
+    read ans
+
+    case "$ans" in
+      1)
+        if select_set; then
+          echo ""
+          printf "Disable all packages in this set? [y/N]: "
+          read confirm
+          case "$confirm" in
+            y|Y)
+              apply_set_disable "$SET_FILE"
+              ;;
+            *)
+              echo "Aborted."
+              ;;
+          esac
+        fi
+        pause
+        ;;
+      2)
+        if select_set; then
+          echo ""
+          printf "Enable all packages in this set? [y/N]: "
+          read confirm
+          case "$confirm" in
+            y|Y)
+              apply_set_enable "$SET_FILE"
+              ;;
+            *)
+              echo "Aborted."
+              ;;
+          esac
+        fi
+        pause
+        ;;
+      3)
+        restore_all_from_log
+        pause
+        ;;
+      4)
+        check_updates
+        pause
+        ;;
+      0)
+        echo "Exit."
+        break
+        ;;
+      *)
+        echo "[X] Invalid choice."
+        pause
+        ;;
+    esac
+  done
+}
+
+banner
+ensure_root
+ensure_pm
+init_debloat_dir
+main_menu
