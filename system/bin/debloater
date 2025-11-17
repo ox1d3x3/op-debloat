@@ -1,0 +1,561 @@
+#!/system/bin/sh
+# Debloater - Oppo/ColorOS (CN) by Ox1d3x3
+
+MODID="debloater_systemless_x1"
+MODVERSION="v0.3.7"
+
+[ -z "$MODDIR" ] && MODDIR="/data/adb/modules/$MODID"
+
+LIST_DIR="/sdcard/debloater"
+LOGFILE="$MODDIR/debloater_disable.log"
+TERMLOG="$MODDIR/debloater_terminal.log"
+TEMPLATE_DIR="$MODDIR/templates"
+PROFILES_MENU="$MODDIR/profiles_menu.tmp"
+
+log() {
+  mkdir -p "$MODDIR" 2>/dev/null
+  echo "$(date +'%Y-%m-%d %H:%M:%S') $*" >>"$LOGFILE" 2>/dev/null
+}
+
+tlog() {
+  mkdir -p "$MODDIR" 2>/dev/null
+  echo "$(date +'%Y-%m-%d %H:%M:%S') $*" >>"$TERMLOG" 2>/dev/null
+}
+
+pause() {
+  echo ""
+  printf "Press Enter to continue..."
+  read _ 2>/dev/null
+}
+
+ensure_root() {
+  if [ "$(id -u)" != "0" ]; then
+    echo "[X] Please run as root (su)."
+    exit 1
+  fi
+}
+
+ensure_pm() {
+  if ! command -v pm >/dev/null 2>&1; then
+    echo "[X] pm command not available. This tool must be run on Android."
+    exit 1
+  fi
+}
+
+ver2int() {
+  v="$1"
+  major=$(echo "$v" | cut -d. -f1)
+  minor=$(echo "$v" | cut -d. -f2)
+  patch=$(echo "$v" | cut -d. -f3)
+  [ -z "$major" ] && major=0
+  [ -z "$minor" ] && minor=0
+  [ -z "$patch" ] && patch=0
+  echo $((major*10000 + minor*100 + patch))
+}
+
+fetch_http() {
+  url="$1"
+  if command -v curl >/dev/null 2>&1; then
+    curl -sL "$url"
+    return $?
+  elif command -v wget >/dev/null 2>&1; then
+    wget -q -O- "$url"
+    return $?
+  fi
+  return 1
+}
+
+detect_env() {
+  DEVICE="$(getprop ro.product.model)"
+  [ -z "$DEVICE" ] && DEVICE="$(getprop ro.product.product.model)"
+  ANDROID_VER="$(getprop ro.build.version.release)"
+  [ -z "$ANDROID_VER" ] && ANDROID_VER="$(getprop ro.system.build.version.release)"
+
+  ROOTMGR="Unknown"
+  if [ -d /data/adb/magisk ] || getprop persist.magisk.version >/dev/null 2>&1 || command -v magisk >/dev/null 2>&1; then
+    ROOTMGR="Magisk"
+  elif [ -d /data/adb/ksu ] || getprop persist.ksu.version >/dev/null 2>&1; then
+    ROOTMGR="KernelSU"
+  elif [ -d /data/adb/ap ] || getprop persist.apatch.version >/dev/null 2>&1; then
+    ROOTMGR="APatch"
+  fi
+}
+
+banner() {
+  detect_env
+  echo "===================================================="
+  echo "        Debloater - Oppo/ColorOS (CN) by Ox1d3x3"
+  echo "                 Version $MODVERSION"
+  echo "                 Github: @ox1d3x3"
+  echo "                   __   __  __ "
+  echo "                  \\ \\ / / /_ |"
+  echo "                   \\ V /   | |"
+  echo "                    > <    | |"
+  echo "                   / . \\   | |"
+  echo "                  /_/ \\_\\  |_|"
+  echo "===================================================="
+  echo " Device   : ${DEVICE:-unknown}"
+  echo " Android  : ${ANDROID_VER:-unknown}"
+  echo " Root     : ${ROOTMGR:-unknown}"
+  echo " List dir : $LIST_DIR"
+  echo " ModuleID : $MODID"
+  echo ""
+}
+
+show_info() {
+  echo ""
+  echo "Module info"
+  echo "-----------"
+  echo " Module ID   : $MODID"
+  echo " Version     : $MODVERSION"
+
+  DEVICE="$(getprop ro.product.model)"
+  [ -z "$DEVICE" ] && DEVICE="$(getprop ro.product.product.model)"
+  ANDROID_VER="$(getprop ro.build.version.release)"
+  [ -z "$ANDROID_VER" ] && ANDROID_VER="$(getprop ro.system.build.version.release)"
+
+  ROOTMGR="Unknown"
+  if [ -d /data/adb/magisk ] || getprop persist.magisk.version >/dev/null 2>&1 || command -v magisk >/dev/null 2>&1; then
+    ROOTMGR="Magisk"
+  elif [ -d /data/adb/ksu ] || getprop persist.ksu.version >/dev/null 2>&1; then
+    ROOTMGR="KernelSU"
+  elif [ -d /data/adb/ap ] || getprop persist.apatch.version >/dev/null 2>&1; then
+    ROOTMGR="APatch"
+  fi
+
+  echo " Device      : ${DEVICE:-unknown}"
+  echo " Android     : ${ANDROID_VER:-unknown}"
+  echo " Root        : ${ROOTMGR:-unknown}"
+  echo " List dir    : $LIST_DIR"
+  echo " Log file    : $LOGFILE"
+  echo ""
+
+  if [ -d "$LIST_DIR" ]; then
+    echo "Profiles in $LIST_DIR:"
+    ls "$LIST_DIR"/*.list 2>/dev/null | sed 's|.*/|- |' || echo "  (no .list files found)"
+  else
+    echo "Profiles:"
+    echo "  (list directory does not exist yet)"
+  fi
+
+  echo ""
+}
+
+init_list_dir() {
+  if [ ! -d "$LIST_DIR" ]; then
+    mkdir -p "$LIST_DIR" 2>/dev/null
+  fi
+
+  if [ -d "$TEMPLATE_DIR" ]; then
+    for f in "$TEMPLATE_DIR"/*.list; do
+      [ -f "$f" ] || continue
+      base="$(basename "$f")"
+      target="$LIST_DIR/$base"
+      if [ ! -f "$target" ]; then
+        cp "$f" "$target" 2>/dev/null
+      fi
+    done
+  fi
+}
+
+build_profiles_menu() {
+  : > "$PROFILES_MENU"
+  if [ ! -d "$LIST_DIR" ]; then
+    return
+  fi
+
+  idx=1
+  for f in "$LIST_DIR"/*.list; do
+    [ -f "$f" ] || continue
+    disp="$(basename "$f")"
+    name_line="$(grep -m1 '^# *NAME:' "$f" 2>/dev/null || true)"
+    if [ -n "$name_line" ]; then
+      disp="$(echo "$name_line" | sed 's/^# *NAME:[[:space:]]*//')"
+    fi
+    echo "$idx|$f|$disp" >>"$PROFILES_MENU"
+    idx=$((idx + 1))
+  done
+}
+
+select_profile() {
+  build_profiles_menu
+  if [ ! -s "$PROFILES_MENU" ]; then
+    echo "[X] No .list profiles found in $LIST_DIR"
+    echo "    Create or copy a .list file there first."
+    return 1
+  fi
+
+  echo ""
+  echo "Available profiles:"
+  echo "-------------------"
+  while IFS='|' read -r idx path disp; do
+    [ -z "$idx" ] && continue
+    echo "  $idx) $disp"
+    echo "      ($path)"
+  done <"$PROFILES_MENU"
+
+  echo ""
+  printf "Select profile number: "
+  read choice 2>/dev/null
+
+  case "$choice" in
+    ''|*[!0-9]*)
+      echo "[X] Invalid choice."
+      return 1
+      ;;
+  esac
+
+  sel_line="$(grep "^$choice|" "$PROFILES_MENU" 2>/dev/null | head -n1)"
+  if [ -z "$sel_line" ]; then
+    echo "[X] No such profile index."
+    return 1
+  fi
+
+  PROFILE_PATH="$(echo "$sel_line" | cut -d'|' -f2)"
+  PROFILE_NAME="$(echo "$sel_line" | cut -d'|' -f3-)"
+  export PROFILE_PATH PROFILE_NAME
+  return 0
+}
+
+disable_profile_file() {
+  profile="$1"
+  [ ! -f "$profile" ] && echo "[X] Profile not found: $profile" && return 1
+
+  echo ""
+  echo "Disabling packages from:"
+  echo "  $profile"
+  echo ""
+
+  total=0
+  disabled=0
+  skipped=0
+  failed=0
+
+  while IFS= read -r line; do
+    line="$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    case "$line" in
+      ""|\#*) continue ;;
+    esac
+
+    pkg="$line"
+    total=$((total + 1))
+
+    if ! pm path "$pkg" >/dev/null 2>&1; then
+      echo " - skip (not installed): $pkg"
+      log "SKIP_NOT_INSTALLED $pkg"
+      skipped=$((skipped + 1))
+      continue
+    fi
+
+    if pm disable-user --user 0 "$pkg" >/dev/null 2>&1; then
+      echo " - disabled: $pkg"
+      log "DISABLE_OK $pkg"
+      disabled=$((disabled + 1))
+    else
+      echo " - FAILED: $pkg"
+      log "DISABLE_FAIL $pkg"
+      failed=$((failed + 1))
+    fi
+  done <"$profile"
+
+  echo ""
+  echo "Summary:"
+  echo "  total    : $total"
+  echo "  disabled : $disabled"
+  echo "  skipped  : $skipped"
+  echo "  failed   : $failed"
+  echo ""
+}
+
+enable_profile_file() {
+  profile="$1"
+  [ ! -f "$profile" ] && echo "[X] Profile not found: $profile" && return 1
+
+  echo ""
+  echo "Enabling packages from:"
+  echo "  $profile"
+  echo ""
+
+  total=0
+  enabled=0
+  skipped=0
+  failed=0
+
+  while IFS= read -r line; do
+    line="$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    case "$line" in
+      ""|\#*) continue ;;
+    esac
+    pkg="$line"
+    total=$((total + 1))
+
+    if ! pm path "$pkg" >/dev/null 2>&1; then
+      echo " - skip (not installed): $pkg"
+      log "ENABLE_SKIP_NOT_INSTALLED $pkg"
+      skipped=$((skipped + 1))
+      continue
+    fi
+
+    if pm enable --user 0 "$pkg" >/dev/null 2>&1; then
+      echo " - enabled: $pkg"
+      log "ENABLE_OK $pkg"
+      enabled=$((enabled + 1))
+    else
+      echo " - FAILED: $pkg"
+      log "ENABLE_FAIL $pkg"
+      failed=$((failed + 1))
+    fi
+  done <"$profile"
+
+  echo ""
+  echo "Summary:"
+  echo "  total   : $total"
+  echo "  enabled : $enabled"
+  echo "  skipped : $skipped"
+  echo "  failed  : $failed"
+  echo ""
+}
+
+restore_all_from_log() {
+  echo ""
+  echo "Full restore from log"
+  echo "---------------------"
+
+  if [ ! -f "$LOGFILE" ]; then
+    echo "[X] Log file not found:"
+    echo "    $LOGFILE"
+    echo "Cannot determine what this module disabled."
+    return 1
+  fi
+
+  PKGS="$(grep 'DISABLE_OK' "$LOGFILE" 2>/dev/null | awk '{print $NF}' | sort -u)"
+
+  if [ -z "$PKGS" ]; then
+    echo "[i] No DISABLE_OK entries found in log."
+    echo "    Nothing to restore."
+    return 0
+  fi
+
+  total=0
+  enabled=0
+  missing=0
+
+  for raw in $PKGS; do
+    pkg="$(echo "$raw" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    [ -z "$pkg" ] && continue
+
+    total=$((total + 1))
+
+    if ! pm path "$pkg" >/dev/null 2>&1; then
+      echo " - note: pm path reports not installed, trying enable anyway: $pkg"
+      if pm enable --user 0 "$pkg" >/dev/null 2>&1; then
+        echo "   -> enabled (despite pm path)"
+        log "ENABLE_FROM_LOG_OK $pkg"
+        enabled=$((enabled + 1))
+      else
+        echo "   -> still missing or failed"
+        log "ENABLE_FROM_LOG_FAIL $pkg"
+        missing=$((missing + 1))
+      fi
+      continue
+    fi
+
+    if pm enable --user 0 "$pkg" >/dev/null 2>&1; then
+      echo " - enabled: $pkg"
+      log "ENABLE_FROM_LOG_OK $pkg"
+      enabled=$((enabled + 1))
+    else
+      echo " - failed: $pkg"
+      log "ENABLE_FROM_LOG_FAIL $pkg"
+    fi
+  done
+
+  echo ""
+  echo "Summary:"
+  echo "  from log : $total"
+  echo "  enabled  : $enabled"
+  echo "  missing  : $missing"
+  echo ""
+  echo "Note: This only restores packages that this module successfully disabled"
+  echo "      while logging DISABLE_OK in:"
+  echo "      $LOGFILE"
+}
+
+restore_default_profiles() {
+  echo ""
+  echo "Restore default profiles"
+  echo "------------------------"
+
+  if [ ! -d "$TEMPLATE_DIR" ]; then
+    echo "[X] Template directory not found:"
+    echo "    $TEMPLATE_DIR"
+    echo "Cannot restore defaults."
+    return 1
+  fi
+
+  mkdir -p "$LIST_DIR" 2>/dev/null
+
+  ts="$(date +%Y%m%d-%H%M%S)"
+
+  restored=0
+  backed_up=0
+
+  for f in "$TEMPLATE_DIR"/*.list; do
+    [ -f "$f" ] || continue
+    base="$(basename "$f")"
+    target="$LIST_DIR/$base"
+
+    if [ -f "$target" ]; then
+      mv "$target" "$target.bak.$ts" 2>/dev/null && backed_up=$((backed_up + 1))
+    fi
+
+    if cp "$f" "$target" 2>/dev/null; then
+      echo " - restored: $base"
+      restored=$((restored + 1))
+    fi
+  done
+
+  echo ""
+  echo "Summary:"
+  echo "  restored profiles : $restored"
+  echo "  backups created   : $backed_up"
+  echo ""
+  echo "Defaults are now in: $LIST_DIR"
+  echo "Existing files (if any) were backed up with .bak.$ts suffix."
+}
+
+check_updates() {
+  echo ""
+  echo "Update check"
+  echo "------------"
+
+  LOCAL_VER="$MODVERSION"
+  LOCAL_CODE=""
+  if [ -f "$MODDIR/module.prop" ]; then
+    LV_LINE="$(grep '^version=' "$MODDIR/module.prop" 2>/dev/null | head -n1)"
+    LC_LINE="$(grep '^versionCode=' "$MODDIR/module.prop" 2>/dev/null | head -n1)"
+    [ -n "$LV_LINE" ] && LOCAL_VER="${LV_LINE#version=}"
+    [ -n "$LC_LINE" ] && LOCAL_CODE="${LC_LINE#versionCode=}"
+  fi
+
+  echo " Local version : $LOCAL_VER (${LOCAL_CODE:-unknown})"
+
+  URL_JSON="https://raw.githubusercontent.com/ox1d3x3/op-debloat/main/update.json"
+  RESP="$(fetch_http "$URL_JSON")"
+
+  REMOTE_VER=""
+  REMOTE_CODE=""
+
+  if [ -n "$RESP" ]; then
+    REMOTE_VER="$(printf "%s" "$RESP" | sed -n 's/.*"version" *: *"\([^\"]*\)".*/\1/p' | head -n1)"
+    REMOTE_CODE="$(printf "%s" "$RESP" | sed -n 's/.*"versionCode" *: *\([0-9][0-9]*\).*/\1/p' | head -n1)"
+  fi
+
+  if [ -z "$REMOTE_VER" ] && [ -z "$REMOTE_CODE" ]; then
+    echo "[!] Could not parse update.json, trying GitHub API..."
+    API_RESP="$(fetch_http "https://api.github.com/repos/ox1d3x3/op-debloat/releases/latest")"
+    if [ -n "$API_RESP" ]; then
+      REMOTE_VER="$(printf "%s" "$API_RESP" | sed -n 's/.*"tag_name" *: *"\([^\"]*\)".*/\1/p' | head -n1)"
+    fi
+  fi
+
+  if [ -z "$REMOTE_VER" ] && [ -z "$REMOTE_CODE" ]; then
+    echo "[X] Failed to determine remote version (update.json + API both failed)."
+    echo "    Check your network or GitHub status."
+    return 1
+  fi
+
+  echo " Remote version: $REMOTE_VER (${REMOTE_CODE:-unknown})"
+  echo ""
+
+  if [ -n "$REMOTE_CODE" ] && [ -n "$LOCAL_CODE" ] && [ "$REMOTE_CODE" -gt "$LOCAL_CODE" ] 2>/dev/null; then
+    echo "[!] Update available!"
+    echo "    Installed : $LOCAL_VER ($LOCAL_CODE)"
+    echo "    Latest    : $REMOTE_VER ($REMOTE_CODE)"
+  else
+    LV_CLEAN="${LOCAL_VER#v}"
+    RV_CLEAN="${REMOTE_VER#v}"
+    LV_I="$(ver2int "$LV_CLEAN")"
+    RV_I="$(ver2int "$RV_CLEAN")"
+    if [ "$RV_I" -gt "$LV_I" ] 2>/dev/null; then
+      echo "[!] Update likely available (by version string)."
+      echo "    Installed : $LOCAL_VER"
+      echo "    Latest    : $REMOTE_VER"
+    else
+      echo "[i] No update needed. You are on the latest known version."
+    fi
+  fi
+
+  echo ""
+  echo "Updates are delivered via KernelSU/Magisk/APatch using updateJson, or you can"
+  echo "download manually from:"
+  echo "  https://github.com/ox1d3x3/op-debloat/releases"
+  echo ""
+}
+
+main_menu() {
+  while true; do
+    echo "Main menu"
+    echo "---------"
+    echo "  1) Disable packages (debloat set)"
+    echo "  2) Enable/restore packages (debloat set)"
+    echo "  3) Full restore (all packages this module disabled)"
+    echo "  4) Check for updates (GitHub/update.json)"
+    echo "  5) Info / diagnostics"
+    echo "  6) Restore default profiles (.list templates)"
+    echo "  0) Exit"
+    echo ""
+    printf "[Debloater %s] Choice: " "$MODVERSION"
+    read ch 2>/dev/null
+
+    case "$ch" in
+      1)
+        if select_profile; then
+          disable_profile_file "$PROFILE_PATH"
+          pause
+        fi
+        ;;
+      2)
+        if select_profile; then
+          enable_profile_file "$PROFILE_PATH"
+          pause
+        fi
+        ;;
+      3)
+        restore_all_from_log
+        pause
+        ;;
+      4)
+        check_updates
+        pause
+        ;;
+      5)
+        show_info
+        pause
+        ;;
+      6)
+        restore_default_profiles
+        pause
+        ;;
+      0)
+        echo "Bye."
+        exit 0
+        ;;
+      *)
+        echo "[X] Invalid choice."
+        ;;
+    esac
+  done
+}
+
+if [ "$1" = "-u" ] || [ "$1" = "--update" ] || [ "$1" = "--check-update" ] || [ "$1" = "update" ]; then
+  banner
+  check_updates
+  exit 0
+fi
+
+ensure_root
+ensure_pm
+init_list_dir
+banner
+main_menu
