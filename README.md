@@ -8,8 +8,6 @@ Instead of uninstalling apps, it uses `pm disable-user --user 0` so everything i
 - ✅ Debloat lists live in **`/sdcard/debloater`** (easy to edit)
 - ✅ Includes **restore** options and **OTA updates**
 
-> **Current version:** `v0.3.6` (`versionCode 306`)
-
 ---
 
 ## ✨ Features
