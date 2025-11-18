@@ -1,8 +1,6 @@
 id=debloater_systemless_x1
-name=Debloater - Oppo/ColorOS (CN) by Ox1d3x3
-version=v0.3.7
-versionCode=307
+name=Debloater - Oppo/ColorOS (CN)
+version=0.4.0
+versionCode=40
 author=Ox1d3x3
-description=Interactive list-based debloater for Oppo/ColorOS (CN) CN ROMs. Uses pm disable/enable on user 0 only. Profiles in /sdcard/debloater. Reversible with restore-from-log. Compatible with Magisk / KernelSU / APatch.
-updateJson=https://raw.githubusercontent.com/ox1d3x3/op-debloat/main/update.json
-minMagisk=24.0
+description=Systemless debloater for Oppo/ColorOS (CN). Uses lists on /sdcard/debloater to pm disable/enable non-core bloat (ads, HeyTap, Breeno, CN extras).
