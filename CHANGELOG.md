@@ -1,3 +1,107 @@
+##v0.4.0 – Major Upgrade (Recommended Update)
+🚀 New Features
+
+Automatic template generation
+Creates the full set of debloat profiles on first run:
+
+disable.list
+
+cn_ecosystem.list
+
+breeno_minimal.list
+
+coloros16_reference.list
+
+enabled.list
+
+Full Restore (List-Based)
+Restores all packages found in:
+
+disable.list
+
+cn_ecosystem.list
+
+breeno_minimal.list
+Writes restored apps into:
+
+enabled.list
+
+Force Breeno Disable (Advanced)
+Aggressive Breeno/AI kill routine:
+
+pm disable-user
+
+pm disable
+
+cmd package suspend (if supported)
+Useful for stubborn Breeno services that auto-reappear.
+
+App Visibility Tools
+
+List all installed packages
+
+List disabled packages (pm list packages -d)
+
+GitHub Auto-Update Checker
+
+Automatically checks for new releases from
+ox1d3x3/op-debloat
+
+Compares semantic version numbers
+
+Provides download link for latest release
+
+✨ Improvements
+
+Flashable ASCII Banner Fixed
+
+Now always visible in Magisk / KSU / APatch installers
+
+Dynamic info:
+
+Device model
+
+Android version
+
+Root manager type
+
+Shows:
+
+Device
+
+Android version
+
+Root environment
+
+Module ID & version
+
+No more false “not installed” messages
+Removed pm path dependency → ColorOS was hiding packages.
+Now relies on direct pm disable-user / pm enable status.
+
+Cleaner Folder & Naming Logic
+
+Uses /sdcard/debloater/
+
+Profiles are readable, editable, user-friendly
+
+Safer System Behavior
+
+No background services
+
+No daemons
+
+No loops
+
+No battery drain
+
+Purely on-demand execution
+
+
+
+
+
+
 ## v0.3.7
 - Added dedicated **Breeno / AI profiles**:
   - `breeno_ai_minimal.list` – disables only the visible Breeno assistant / voice front-end:
