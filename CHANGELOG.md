@@ -53,8 +53,6 @@ Provides download link for latest release
 
 ✨ Improvements
 
-Flashable ASCII Banner Fixed
-
 Now always visible in Magisk / KSU / APatch installers
 
 Dynamic info:
