@@ -1,4 +1,4 @@
-##v0.4.0 – Major Upgrade (Recommended Update)
+## v0.4.0 – Major Upgrade (Recommended Update)
 🚀 New Features
 
 Automatic template generation
