@@ -1,68 +1,17 @@
 #!/system/bin/sh
 # Debloater - Oppo/ColorOS (CN) by Ox1d3x3
+# Systemless debloater using pm disable/enable and list files on /sdcard/debloater
 
+MODVERSION="0.4.0"
 MODID="debloater_systemless_x1"
-MODVERSION="v0.3.7"
-
-[ -z "$MODDIR" ] && MODDIR="/data/adb/modules/$MODID"
-
 LIST_DIR="/sdcard/debloater"
-LOGFILE="$MODDIR/debloater_disable.log"
-TERMLOG="$MODDIR/debloater_terminal.log"
-TEMPLATE_DIR="$MODDIR/templates"
-PROFILES_MENU="$MODDIR/profiles_menu.tmp"
+LOGFILE="/data/adb/modules/$MODID/debloater_disable.log"
+
+# ---------- helpers ----------
 
 log() {
-  mkdir -p "$MODDIR" 2>/dev/null
-  echo "$(date +'%Y-%m-%d %H:%M:%S') $*" >>"$LOGFILE" 2>/dev/null
-}
-
-tlog() {
-  mkdir -p "$MODDIR" 2>/dev/null
-  echo "$(date +'%Y-%m-%d %H:%M:%S') $*" >>"$TERMLOG" 2>/dev/null
-}
-
-pause() {
-  echo ""
-  printf "Press Enter to continue..."
-  read _ 2>/dev/null
-}
-
-ensure_root() {
-  if [ "$(id -u)" != "0" ]; then
-    echo "[X] Please run as root (su)."
-    exit 1
-  fi
-}
-
-ensure_pm() {
-  if ! command -v pm >/dev/null 2>&1; then
-    echo "[X] pm command not available. This tool must be run on Android."
-    exit 1
-  fi
-}
-
-ver2int() {
-  v="$1"
-  major=$(echo "$v" | cut -d. -f1)
-  minor=$(echo "$v" | cut -d. -f2)
-  patch=$(echo "$v" | cut -d. -f3)
-  [ -z "$major" ] && major=0
-  [ -z "$minor" ] && minor=0
-  [ -z "$patch" ] && patch=0
-  echo $((major*10000 + minor*100 + patch))
-}
-
-fetch_http() {
-  url="$1"
-  if command -v curl >/dev/null 2>&1; then
-    curl -sL "$url"
-    return $?
-  elif command -v wget >/dev/null 2>&1; then
-    wget -q -O- "$url"
-    return $?
-  fi
-  return 1
+  TS="$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo '0000-00-00 00:00:00')"
+  echo "$TS  $*" >>"$LOGFILE"
 }
 
 detect_env() {
@@ -85,7 +34,7 @@ banner() {
   detect_env
   echo "===================================================="
   echo "        Debloater - Oppo/ColorOS (CN) by Ox1d3x3"
-  echo "                 Version $MODVERSION"
+  echo "                 Version v$MODVERSION"
   echo "                 Github: @ox1d3x3"
   echo "                   __   __  __ "
   echo "                  \\ \\ / / /_ |"
@@ -102,460 +51,614 @@ banner() {
   echo ""
 }
 
-show_info() {
+pause() {
   echo ""
-  echo "Module info"
-  echo "-----------"
-  echo " Module ID   : $MODID"
-  echo " Version     : $MODVERSION"
-
-  DEVICE="$(getprop ro.product.model)"
-  [ -z "$DEVICE" ] && DEVICE="$(getprop ro.product.product.model)"
-  ANDROID_VER="$(getprop ro.build.version.release)"
-  [ -z "$ANDROID_VER" ] && ANDROID_VER="$(getprop ro.system.build.version.release)"
-
-  ROOTMGR="Unknown"
-  if [ -d /data/adb/magisk ] || getprop persist.magisk.version >/dev/null 2>&1 || command -v magisk >/dev/null 2>&1; then
-    ROOTMGR="Magisk"
-  elif [ -d /data/adb/ksu ] || getprop persist.ksu.version >/dev/null 2>&1; then
-    ROOTMGR="KernelSU"
-  elif [ -d /data/adb/ap ] || getprop persist.apatch.version >/dev/null 2>&1; then
-    ROOTMGR="APatch"
-  fi
-
-  echo " Device      : ${DEVICE:-unknown}"
-  echo " Android     : ${ANDROID_VER:-unknown}"
-  echo " Root        : ${ROOTMGR:-unknown}"
-  echo " List dir    : $LIST_DIR"
-  echo " Log file    : $LOGFILE"
-  echo ""
-
-  if [ -d "$LIST_DIR" ]; then
-    echo "Profiles in $LIST_DIR:"
-    ls "$LIST_DIR"/*.list 2>/dev/null | sed 's|.*/|- |' || echo "  (no .list files found)"
-  else
-    echo "Profiles:"
-    echo "  (list directory does not exist yet)"
-  fi
-
-  echo ""
+  echo "Press Enter to continue..."
+  read -r _
 }
 
-init_list_dir() {
-  if [ ! -d "$LIST_DIR" ]; then
-    mkdir -p "$LIST_DIR" 2>/dev/null
-  fi
+ensure_root() {
+  id | grep -q "uid=0" || {
+    echo "[X] This script must be run as root (su)."
+    exit 1
+  }
+}
 
-  if [ -d "$TEMPLATE_DIR" ]; then
-    for f in "$TEMPLATE_DIR"/*.list; do
-      [ -f "$f" ] || continue
-      base="$(basename "$f")"
-      target="$LIST_DIR/$base"
-      if [ ! -f "$target" ]; then
-        cp "$f" "$target" 2>/dev/null
-      fi
-    done
+ensure_pm() {
+  if ! command -v pm >/dev/null 2>&1; then
+    echo "[X] 'pm' command not found. Are you on Android shell?"
+    exit 1
   fi
 }
 
-build_profiles_menu() {
-  : > "$PROFILES_MENU"
-  if [ ! -d "$LIST_DIR" ]; then
-    return
-  fi
+# ---------- template bootstrap ----------
 
-  idx=1
-  for f in "$LIST_DIR"/*.list; do
-    [ -f "$f" ] || continue
-    disp="$(basename "$f")"
-    name_line="$(grep -m1 '^# *NAME:' "$f" 2>/dev/null || true)"
-    if [ -n "$name_line" ]; then
-      disp="$(echo "$name_line" | sed 's/^# *NAME:[[:space:]]*//')"
-    fi
-    echo "$idx|$f|$disp" >>"$PROFILES_MENU"
-    idx=$((idx + 1))
-  done
+write_if_missing() {
+  # $1 = path, $2 = content
+  if [ ! -f "$1" ]; then
+    echo "Creating template: $1"
+    mkdir -p "$(dirname "$1")"
+    cat <<EOF >"$1"
+$2
+EOF
+  fi
 }
 
-select_profile() {
-  build_profiles_menu
-  if [ ! -s "$PROFILES_MENU" ]; then
-    echo "[X] No .list profiles found in $LIST_DIR"
-    echo "    Create or copy a .list file there first."
-    return 1
-  fi
+init_debloat_dir() {
+  echo "Init lists under $LIST_DIR ..."
+  mkdir -p "$LIST_DIR"
 
-  echo ""
-  echo "Available profiles:"
-  echo "-------------------"
-  while IFS='|' read -r idx path disp; do
-    [ -z "$idx" ] && continue
-    echo "  $idx) $disp"
-    echo "      ($path)"
-  done <"$PROFILES_MENU"
+  # Default disable profile
+  write_if_missing "$LIST_DIR/disable.list" \
+"# NAME: disable
+# Default disable set for ColorOS 16 (CN).
+# Focus: ads, store, CN media, and non-essential ecosystem services.
 
-  echo ""
-  printf "Select profile number: "
-  read choice 2>/dev/null
+# Ads & store
+com.oppo.ads
+com.heytap.market
 
-  case "$choice" in
-    ''|*[!0-9]*)
-      echo "[X] Invalid choice."
-      return 1
-      ;;
-  esac
+# CN browser
+com.heytap.browser
+com.coloros.browser
 
-  sel_line="$(grep "^$choice|" "$PROFILES_MENU" 2>/dev/null | head -n1)"
-  if [ -z "$sel_line" ]; then
-    echo "[X] No such profile index."
-    return 1
-  fi
+# CN media & extras
+com.heytap.music
+com.heytap.reader
+com.heytap.pictorial
+com.coloros.video
+com.coloros.karaoke
+andes.oplus.documentsreader
 
-  PROFILE_PATH="$(echo "$sel_line" | cut -d'|' -f2)"
-  PROFILE_NAME="$(echo "$sel_line" | cut -d'|' -f3-)"
-  export PROFILE_PATH PROFILE_NAME
-  return 0
+# Oppo ecosystem (consumer extras)
+com.heytap.accessory
+com.heytap.mydevices
+com.heytap.vip
+com.heytap.yoli
+com.oppo.ctautoregist
+com.oplus.contentportal
+com.oplus.pay
+com.oplus.omoji
+com.oplus.ocar
+com.heytap.opluscarlink
+"
+
+  # Extended CN ecosystem / Breeno profile
+  write_if_missing "$LIST_DIR/cn_ecosystem.list" \
+"# NAME: cn_ecosystem
+# Extended CN ecosystem set for ColorOS 16 (CN).
+# Includes browser, AI/Breeno stack, media, and ecosystem services.
+
+# Ads & store
+com.oppo.ads
+com.heytap.market
+
+# CN browser
+com.heytap.browser
+com.coloros.browser
+
+# Breeno / AI stack
+com.heytap.speechassist
+com.oplus.ovoicemanager
+com.oplus.ovoicemanager.wakeup
+com.oplus.aicall
+com.oplus.aiwriter
+com.oplus.aiwidgets
+com.oplus.aiunit
+com.oplus.obrain
+com.oplus.deepthinker
+com.oplus.metis
+com.oplus.matrix
+com.oplus.atlas
+
+# CN media & extras
+com.heytap.music
+com.heytap.reader
+com.heytap.pictorial
+com.coloros.video
+com.coloros.karaoke
+andes.oplus.documentsreader
+
+# Oppo ecosystem
+com.heytap.accessory
+com.heytap.mydevices
+com.heytap.vip
+com.heytap.yoli
+com.oppo.ctautoregist
+com.oplus.contentportal
+com.oplus.pay
+com.oplus.omoji
+com.oplus.ocar
+com.heytap.opluscarlink
+"
+
+  # Breeno minimal only
+  write_if_missing "$LIST_DIR/breeno_minimal.list" \
+"# NAME: breeno_minimal
+# Minimal Breeno/AI stack disable for ColorOS 16 (CN).
+# Focused on assistant/AI only. Does NOT include browser/store/media.
+
+com.heytap.speechassist
+com.oplus.ovoicemanager
+com.oplus.ovoicemanager.wakeup
+com.oplus.aicall
+com.oplus.aiwriter
+com.oplus.aiwidgets
+com.oplus.aiunit
+com.oplus.obrain
+com.oplus.deepthinker
+com.oplus.metis
+com.oplus.matrix
+com.oplus.atlas
+"
+
+  # Reference list
+  write_if_missing "$LIST_DIR/coloros16_reference.list" \
+"# NAME: coloros16_reference
+# Reference list for common ColorOS 16 (CN) bloat.
+# This file is NOT used automatically. Copy what you want into disable.list.
+
+# Ads & store
+com.oppo.ads
+com.heytap.market
+
+# CN browser
+com.heytap.browser
+com.coloros.browser
+
+# Breeno / AI stack
+com.heytap.speechassist
+com.oplus.ovoicemanager
+com.oplus.ovoicemanager.wakeup
+com.oplus.aicall
+com.oplus.aiwriter
+com.oplus.aiwidgets
+com.oplus.aiunit
+com.oplus.obrain
+com.oplus.deepthinker
+com.oplus.metis
+com.oplus.matrix
+com.oplus.atlas
+
+# CN media & extras
+com.heytap.music
+com.heytap.reader
+com.heytap.pictorial
+com.coloros.video
+com.coloros.karaoke
+andes.oplus.documentsreader
+
+# Oppo ecosystem
+com.heytap.accessory
+com.heytap.mydevices
+com.heytap.vip
+com.heytap.yoli
+com.oppo.ctautoregist
+com.oplus.contentportal
+com.oplus.pay
+com.oplus.omoji
+com.oplus.ocar
+com.heytap.opluscarlink
+"
+
+  # Enabled list (populated by full restore)
+  write_if_missing "$LIST_DIR/enabled.list" \
+"# NAME: enabled
+# This file is populated by the Debloater full-restore option.
+# It contains packages that were re-enabled by the module.
+"
 }
 
-disable_profile_file() {
-  profile="$1"
-  [ ! -f "$profile" ] && echo "[X] Profile not found: $profile" && return 1
+# ---------- core actions ----------
 
+apply_set_disable() {
+  file="$1"
   echo ""
-  echo "Disabling packages from:"
-  echo "  $profile"
+  echo "Mode: disable (pm disable-user --user 0)"
   echo ""
 
   total=0
   disabled=0
-  skipped=0
   failed=0
 
-  while IFS= read -r line; do
-    line="$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-    case "$line" in
-      ""|\#*) continue ;;
-    esac
+  while IFS= read -r line || [ -n "$line" ]; do
+    pkg="$(echo "$line" | tr -d '\r' | sed 's/#.*$//' | sed 's/^ *//;s/ *$//')"
+    [ -z "$pkg" ] && continue
 
-    pkg="$line"
     total=$((total + 1))
-
-    if ! pm path "$pkg" >/dev/null 2>&1; then
-      echo " - skip (not installed): $pkg"
-      log "SKIP_NOT_INSTALLED $pkg"
-      skipped=$((skipped + 1))
-      continue
-    fi
 
     if pm disable-user --user 0 "$pkg" >/dev/null 2>&1; then
       echo " - disabled: $pkg"
       log "DISABLE_OK $pkg"
       disabled=$((disabled + 1))
     else
-      echo " - FAILED: $pkg"
+      echo " - failed (not installed or cannot be disabled): $pkg"
       log "DISABLE_FAIL $pkg"
       failed=$((failed + 1))
     fi
-  done <"$profile"
+  done < "$file"
 
   echo ""
   echo "Summary:"
-  echo "  total    : $total"
-  echo "  disabled : $disabled"
-  echo "  skipped  : $skipped"
-  echo "  failed   : $failed"
-  echo ""
+  echo "  entries : $total"
+  echo "  disabled: $disabled"
+  echo "  failed  : $failed"
 }
 
-enable_profile_file() {
-  profile="$1"
-  [ ! -f "$profile" ] && echo "[X] Profile not found: $profile" && return 1
-
+apply_set_enable() {
+  file="$1"
   echo ""
-  echo "Enabling packages from:"
-  echo "  $profile"
+  echo "Mode: restore (pm enable --user 0)"
   echo ""
 
   total=0
   enabled=0
-  skipped=0
   failed=0
 
-  while IFS= read -r line; do
-    line="$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-    case "$line" in
-      ""|\#*) continue ;;
-    esac
-    pkg="$line"
-    total=$((total + 1))
+  while IFS= read -r line || [ -n "$line" ]; do
+    pkg="$(echo "$line" | tr -d '\r' | sed 's/#.*$//' | sed 's/^ *//;s/ *$//')"
+    [ -z "$pkg" ] && continue
 
-    if ! pm path "$pkg" >/dev/null 2>&1; then
-      echo " - skip (not installed): $pkg"
-      log "ENABLE_SKIP_NOT_INSTALLED $pkg"
-      skipped=$((skipped + 1))
-      continue
-    fi
+    total=$((total + 1))
 
     if pm enable --user 0 "$pkg" >/dev/null 2>&1; then
       echo " - enabled: $pkg"
       log "ENABLE_OK $pkg"
       enabled=$((enabled + 1))
     else
-      echo " - FAILED: $pkg"
+      echo " - failed (not installed or cannot be enabled): $pkg"
       log "ENABLE_FAIL $pkg"
       failed=$((failed + 1))
     fi
-  done <"$profile"
+  done < "$file"
 
   echo ""
   echo "Summary:"
-  echo "  total   : $total"
+  echo "  entries : $total"
   echo "  enabled : $enabled"
-  echo "  skipped : $skipped"
   echo "  failed  : $failed"
-  echo ""
 }
 
-restore_all_from_log() {
+restore_full_from_lists() {
   echo ""
-  echo "Full restore from log"
-  echo "---------------------"
+  echo "Full restore from templates"
+  echo "---------------------------"
 
-  if [ ! -f "$LOGFILE" ]; then
-    echo "[X] Log file not found:"
-    echo "    $LOGFILE"
-    echo "Cannot determine what this module disabled."
+  if [ ! -d "$LIST_DIR" ]; then
+    echo "[X] List directory not found: $LIST_DIR"
+    echo "    Run debloater once to initialise templates."
     return 1
   fi
 
-  PKGS="$(grep 'DISABLE_OK' "$LOGFILE" 2>/dev/null | awk '{print $NF}' | sort -u)"
+  tmp_union="/data/local/tmp/debloater_restore_union.$$"
+  : >"$tmp_union"
 
-  if [ -z "$PKGS" ]; then
-    echo "[i] No DISABLE_OK entries found in log."
+  # Union of default + CN ecosystem + Breeno minimal
+  for name in disable cn_ecosystem breeno_minimal; do
+    f="$LIST_DIR/$name.list"
+    if [ -f "$f" ]; then
+      grep -v '^[[:space:]]*#' "$f" \
+        | sed 's/\r$//' \
+        | sed 's/^ *//;s/ *$//' \
+        | sed '/^$/d' >>"$tmp_union"
+    fi
+  done
+
+  if [ ! -s "$tmp_union" ]; then
+    echo "[i] No entries found in disable/cn_ecosystem/breeno_minimal lists."
     echo "    Nothing to restore."
+    rm -f "$tmp_union"
     return 0
+  fi
+
+  PKGS="$(sort -u "$tmp_union")"
+  rm -f "$tmp_union"
+
+  enabled_list="$LIST_DIR/enabled.list"
+  if ! grep -q "NAME: enabled" "$enabled_list" 2>/dev/null; then
+    echo "# NAME: enabled" >"$enabled_list"
+    echo "# Auto-generated by full restore on $(date)" >>"$enabled_list"
+  else
+    echo "# Updated by full restore on $(date)" >>"$enabled_list"
   fi
 
   total=0
   enabled=0
-  missing=0
+  failed=0
 
-  for raw in $PKGS; do
-    pkg="$(echo "$raw" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-    [ -z "$pkg" ] && continue
+  echo ""
+  echo "Restoring packages from debloat templates..."
+  echo ""
 
+  for pkg in $PKGS; do
     total=$((total + 1))
-
-    if ! pm path "$pkg" >/dev/null 2>&1; then
-      echo " - note: pm path reports not installed, trying enable anyway: $pkg"
-      if pm enable --user 0 "$pkg" >/dev/null 2>&1; then
-        echo "   -> enabled (despite pm path)"
-        log "ENABLE_FROM_LOG_OK $pkg"
-        enabled=$((enabled + 1))
-      else
-        echo "   -> still missing or failed"
-        log "ENABLE_FROM_LOG_FAIL $pkg"
-        missing=$((missing + 1))
-      fi
-      continue
-    fi
-
     if pm enable --user 0 "$pkg" >/dev/null 2>&1; then
       echo " - enabled: $pkg"
-      log "ENABLE_FROM_LOG_OK $pkg"
+      echo "$pkg" >>"$enabled_list"
+      log "ENABLE_FULL_OK $pkg"
       enabled=$((enabled + 1))
     else
       echo " - failed: $pkg"
-      log "ENABLE_FROM_LOG_FAIL $pkg"
+      log "ENABLE_FULL_FAIL $pkg"
+      failed=$((failed + 1))
     fi
   done
 
   echo ""
   echo "Summary:"
-  echo "  from log : $total"
-  echo "  enabled  : $enabled"
-  echo "  missing  : $missing"
+  echo "  from lists: $total"
+  echo "  enabled   : $enabled"
+  echo "  failed    : $failed"
   echo ""
-  echo "Note: This only restores packages that this module successfully disabled"
-  echo "      while logging DISABLE_OK in:"
-  echo "      $LOGFILE"
+  echo "Details of restored packages recorded in:"
+  echo "  $enabled_list"
 }
 
-restore_default_profiles() {
-  echo ""
-  echo "Restore default profiles"
-  echo "------------------------"
+# ---------- info / listing ----------
 
-  if [ ! -d "$TEMPLATE_DIR" ]; then
-    echo "[X] Template directory not found:"
-    echo "    $TEMPLATE_DIR"
-    echo "Cannot restore defaults."
-    return 1
+list_all_apps() {
+  echo ""
+  echo "Installed packages (pm list packages)"
+  echo "-------------------------------------"
+  pm list packages | sed 's/^package://'
+}
+
+list_disabled_apps() {
+  echo ""
+  echo "Disabled packages (pm list packages -d)"
+  echo "--------------------------------------"
+  if pm list packages -d >/dev/null 2>&1; then
+    pm list packages -d | sed 's/^package://'
+  else
+    echo "[X] 'pm list packages -d' not supported on this build."
   fi
+}
 
-  mkdir -p "$LIST_DIR" 2>/dev/null
+# ---------- Breeno hard kill ----------
 
-  ts="$(date +%Y%m%d-%H%M%S)"
+force_breeno_disable() {
+  echo ""
+  echo "Force Breeno/AI disable"
+  echo "-----------------------"
 
-  restored=0
-  backed_up=0
+  BRENO_PKGS="
+com.heytap.speechassist
+com.oplus.ovoicemanager
+com.oplus.ovoicemanager.wakeup
+com.oplus.aicall
+com.oplus.aiwriter
+com.oplus.aiwidgets
+com.oplus.aiunit
+com.oplus.obrain
+com.oplus.deepthinker
+com.oplus.metis
+com.oplus.matrix
+com.oplus.atlas
+"
 
-  for f in "$TEMPLATE_DIR"/*.list; do
-    [ -f "$f" ] || continue
-    base="$(basename "$f")"
-    target="$LIST_DIR/$base"
+  total=0
+  ok=0
+  fail=0
 
-    if [ -f "$target" ]; then
-      mv "$target" "$target.bak.$ts" 2>/dev/null && backed_up=$((backed_up + 1))
+  for pkg in $BRENO_PKGS; do
+    [ -z "$pkg" ] && continue
+    total=$((total + 1))
+    echo ">>> $pkg"
+
+    if pm disable-user --user 0 "$pkg" >/dev/null 2>&1; then
+      echo " - pm disable-user OK"
+      log "BREENO_FORCE_DISABLE_USER_OK $pkg"
+    else
+      echo " - pm disable-user failed"
+      log "BREENO_FORCE_DISABLE_USER_FAIL $pkg"
     fi
 
-    if cp "$f" "$target" 2>/dev/null; then
-      echo " - restored: $base"
-      restored=$((restored + 1))
+    if pm disable "$pkg" >/dev/null 2>&1; then
+      echo " - pm disable OK"
+      log "BREENO_FORCE_DISABLE_OK $pkg"
+    fi
+
+    if command -v cmd >/dev/null 2>&1; then
+      if cmd package suspend --user 0 "$pkg" >/dev/null 2>&1; then
+        echo " - cmd package suspend OK"
+        log "BREENO_FORCE_SUSPEND_OK $pkg"
+        ok=$((ok + 1))
+        continue
+      fi
+    fi
+
+    if pm list packages -d | grep -q "$pkg"; then
+      ok=$((ok + 1))
+    else
+      fail=$((fail + 1))
     fi
   done
 
   echo ""
-  echo "Summary:"
-  echo "  restored profiles : $restored"
-  echo "  backups created   : $backed_up"
+  echo "Force Breeno summary:"
+  echo "  targets: $total"
+  echo "  likely disabled/suspended: $ok"
+  echo "  unknown/fail: $fail"
   echo ""
-  echo "Defaults are now in: $LIST_DIR"
-  echo "Existing files (if any) were backed up with .bak.$ts suffix."
+  echo "Note: Some ROMs may re-enable parts of Breeno after OTA or reboot."
+  echo "      Re-run this option if you see it come back."
 }
+
+# ---------- GitHub update check ----------
 
 check_updates() {
   echo ""
-  echo "Update check"
-  echo "------------"
+  echo "Update check (GitHub releases)"
+  echo "------------------------------"
+  REPO="ox1d3x3/op-debloat"
+  API_URL="https://api.github.com/repos/$REPO/releases/latest"
 
-  LOCAL_VER="$MODVERSION"
-  LOCAL_CODE=""
-  if [ -f "$MODDIR/module.prop" ]; then
-    LV_LINE="$(grep '^version=' "$MODDIR/module.prop" 2>/dev/null | head -n1)"
-    LC_LINE="$(grep '^versionCode=' "$MODDIR/module.prop" 2>/dev/null | head -n1)"
-    [ -n "$LV_LINE" ] && LOCAL_VER="${LV_LINE#version=}"
-    [ -n "$LC_LINE" ] && LOCAL_CODE="${LC_LINE#versionCode=}"
-  fi
-
-  echo " Local version : $LOCAL_VER (${LOCAL_CODE:-unknown})"
-
-  URL_JSON="https://raw.githubusercontent.com/ox1d3x3/op-debloat/main/update.json"
-  RESP="$(fetch_http "$URL_JSON")"
-
-  REMOTE_VER=""
-  REMOTE_CODE=""
-
-  if [ -n "$RESP" ]; then
-    REMOTE_VER="$(printf "%s" "$RESP" | sed -n 's/.*"version" *: *"\([^\"]*\)".*/\1/p' | head -n1)"
-    REMOTE_CODE="$(printf "%s" "$RESP" | sed -n 's/.*"versionCode" *: *\([0-9][0-9]*\).*/\1/p' | head -n1)"
-  fi
-
-  if [ -z "$REMOTE_VER" ] && [ -z "$REMOTE_CODE" ]; then
-    echo "[!] Could not parse update.json, trying GitHub API..."
-    API_RESP="$(fetch_http "https://api.github.com/repos/ox1d3x3/op-debloat/releases/latest")"
-    if [ -n "$API_RESP" ]; then
-      REMOTE_VER="$(printf "%s" "$API_RESP" | sed -n 's/.*"tag_name" *: *"\([^\"]*\)".*/\1/p' | head -n1)"
-    fi
-  fi
-
-  if [ -z "$REMOTE_VER" ] && [ -z "$REMOTE_CODE" ]; then
-    echo "[X] Failed to determine remote version (update.json + API both failed)."
-    echo "    Check your network or GitHub status."
+  if command -v curl >/dev/null 2>&1; then
+    RESP="$(curl -sL "$API_URL")"
+  elif command -v wget >/dev/null 2>&1; then
+    RESP="$(wget -qO- "$API_URL")"
+  else
+    echo "[X] curl/wget not available. Cannot check for updates."
     return 1
   fi
 
-  echo " Remote version: $REMOTE_VER (${REMOTE_CODE:-unknown})"
-  echo ""
+  if [ -z "$RESP" ]; then
+    echo "[X] Empty response from GitHub. Network or API issue."
+    return 1
+  fi
 
-  if [ -n "$REMOTE_CODE" ] && [ -n "$LOCAL_CODE" ] && [ "$REMOTE_CODE" -gt "$LOCAL_CODE" ] 2>/dev/null; then
-    echo "[!] Update available!"
-    echo "    Installed : $LOCAL_VER ($LOCAL_CODE)"
-    echo "    Latest    : $REMOTE_VER ($REMOTE_CODE)"
+  REMOTE_TAG="$(echo "$RESP" | sed -n 's/ *\"tag_name\": *\"\\(.*\\)\",/\\1/p' | head -n 1)"
+  if [ -z "$REMOTE_TAG" ]; then
+    echo "[X] Could not parse remote version (tag_name)."
+    return 1
+  fi
+
+  REMOTE_VER="${REMOTE_TAG#v}"
+  REMOTE_VER="${REMOTE_VER#V}"
+  LOCAL_VER="${MODVERSION#v}"
+
+  echo " Local version : $LOCAL_VER"
+  echo " Remote version: $REMOTE_VER (tag: $REMOTE_TAG)"
+
+  ver_to_ints() {
+    v="$1"
+    IFS='.' read -r a b c <<EOF
+$v
+EOF
+    [ -z "$a" ] && a=0
+    [ -z "$b" ] && b=0
+    [ -z "$c" ] && c=0
+    echo "$a $b $c"
+  }
+
+  set -- $(ver_to_ints "$LOCAL_VER")
+  LA=$1; LB=$2; LC=$3
+  set -- $(ver_to_ints "$REMOTE_VER")
+  RA=$1; RB=$2; RC=$3
+
+  if [ "$RA" -gt "$LA" ] || { [ "$RA" -eq "$LA" ] && [ "$RB" -gt "$LB" ]; } || { [ "$RA" -eq "$LA" ] && [ "$RB" -eq "$LB" ] && [ "$RC" -gt "$LC" ]; }; then
+    echo ""
+    echo "Update available:"
+    echo " - Installed: $LOCAL_VER"
+    echo " - Latest   : $REMOTE_VER"
+    echo ""
+    echo "Download from:"
+    echo " https://github.com/$REPO/releases/latest"
   else
-    LV_CLEAN="${LOCAL_VER#v}"
-    RV_CLEAN="${REMOTE_VER#v}"
-    LV_I="$(ver2int "$LV_CLEAN")"
-    RV_I="$(ver2int "$RV_CLEAN")"
-    if [ "$RV_I" -gt "$LV_I" ] 2>/dev/null; then
-      echo "[!] Update likely available (by version string)."
-      echo "    Installed : $LOCAL_VER"
-      echo "    Latest    : $REMOTE_VER"
-    else
-      echo "[i] No update needed. You are on the latest known version."
-    fi
+    echo ""
+    echo "No update available. You are on the latest known version."
+  fi
+}
+
+# ---------- profile selection ----------
+
+select_set() {
+  echo ""
+  echo "Available debloat profiles in $LIST_DIR:"
+  echo "----------------------------------------"
+
+  i=0
+  choices=""
+  for f in "$LIST_DIR"/*.list; do
+    [ -f "$f" ] || continue
+    i=$((i + 1))
+    base="$(basename "$f")"
+    echo "  $i) $base"
+    choices="$choices $f"
+  done
+
+  if [ "$i" -eq 0 ]; then
+    echo "[X] No .list files found in $LIST_DIR."
+    echo "    Edit or create lists there, then try again."
+    return 1
   fi
 
   echo ""
-  echo "Updates are delivered via KernelSU/Magisk/APatch using updateJson, or you can"
-  echo "download manually from:"
-  echo "  https://github.com/ox1d3x3/op-debloat/releases"
-  echo ""
+  printf "Select profile [1-%d]: " "$i"
+  read -r sel
+
+  n=0
+  for f in $choices; do
+    n=$((n + 1))
+    if [ "$n" = "$sel" ]; then
+      SELECTED_SET="$f"
+      echo "Using: $SELECTED_SET"
+      return 0
+    fi
+  done
+
+  echo "[X] Invalid selection."
+  return 1
 }
+
+# ---------- main menu ----------
 
 main_menu() {
   while true; do
+    echo ""
     echo "Main menu"
     echo "---------"
     echo "  1) Disable packages (debloat set)"
     echo "  2) Enable/restore packages (debloat set)"
-    echo "  3) Full restore (all packages this module disabled)"
-    echo "  4) Check for updates (GitHub/update.json)"
-    echo "  5) Info / diagnostics"
-    echo "  6) Restore default profiles (.list templates)"
+    echo "  3) Full restore (from disable/cn_ecosystem/breeno_minimal)"
+    echo "  4) List all packages"
+    echo "  5) List disabled packages"
+    echo "  6) Force Breeno disable"
+    echo "  7) Check for updates (GitHub)"
     echo "  0) Exit"
     echo ""
-    printf "[Debloater %s] Choice: " "$MODVERSION"
-    read ch 2>/dev/null
+    printf "Choice: "
+    read -r choice
 
-    case "$ch" in
+    case "$choice" in
       1)
-        if select_profile; then
-          disable_profile_file "$PROFILE_PATH"
-          pause
+        if select_set; then
+          apply_set_disable "$SELECTED_SET"
         fi
+        pause
         ;;
       2)
-        if select_profile; then
-          enable_profile_file "$PROFILE_PATH"
-          pause
+        if select_set; then
+          apply_set_enable "$SELECTED_SET"
         fi
+        pause
         ;;
       3)
-        restore_all_from_log
+        restore_full_from_lists
         pause
         ;;
       4)
-        check_updates
+        list_all_apps
         pause
         ;;
       5)
-        show_info
+        list_disabled_apps
         pause
         ;;
       6)
-        restore_default_profiles
+        force_breeno_disable
+        pause
+        ;;
+      7)
+        check_updates
         pause
         ;;
       0)
-        echo "Bye."
-        exit 0
+        echo "Exit."
+        break
         ;;
       *)
-        echo "[X] Invalid choice."
+        echo "[X] Invalid option."
+        pause
         ;;
     esac
   done
 }
 
-if [ "$1" = "-u" ] || [ "$1" = "--update" ] || [ "$1" = "--check-update" ] || [ "$1" = "update" ]; then
-  banner
-  check_updates
-  exit 0
-fi
+# ---------- entrypoint ----------
 
 ensure_root
 ensure_pm
-init_list_dir
 banner
+init_debloat_dir
 main_menu
