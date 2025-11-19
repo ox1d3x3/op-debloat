@@ -34,6 +34,10 @@
   - Default optimise, profile-based debloat/restore, full restore, package listing, and basic update stub.
 
 
+## v0.4.1 🚀 (Minor fixes)
+-Fixes code bugs
+-Fixes logic bugs
+
 ## v0.4.0 – Major Upgrade (Recommended Update)
 🚀 New Features
 
