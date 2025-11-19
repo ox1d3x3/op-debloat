@@ -1,6 +1,6 @@
 id=debloater_systemless_x1
-name=Debloater - Oppo/ColorOS (CN)
-version=0.4.0
-versionCode=40
+name=Debloater - Oppo/ColorOS (CN) by Ox1d3x3
+version=v0.5.0
+versionCode=500
 author=Ox1d3x3
-description=Systemless debloater for Oppo/ColorOS (CN). Uses lists on /sdcard/debloater to pm disable/enable non-core bloat (ads, HeyTap, Breeno, CN extras).
+description=Systemless Oppo/ColorOS CN debloater (OTA-safe): Default Optimize Apps, Breeno AI triple-disable, list-based control, CN_bloat-list reference, and safe restore tracking. Android 16 / Magisk / KernelSU compatible.

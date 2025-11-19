@@ -1,4 +1,3 @@
 #!/system/bin/sh
-MODDIR=${0%/*}
-# No background service. Everything is manual to avoid battery drain.
+# No background service.
 exit 0
