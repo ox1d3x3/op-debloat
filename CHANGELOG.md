@@ -1,5 +1,21 @@
 # Changelog – Debloater (Oppo/ColorOS CN) by Ox1d3x3
 
+## v0.6.0 🚀 (AdGuard-DNS added + optimise the code)
+
+### Added
+- **AdGuard DNS (Private DNS helper)**  
+  - New main menu option: `9. AdGuard DNS (Private DNS helper)`.
+  - Uses Android’s global Private DNS settings via the `settings` tool:
+    - `settings put global private_dns_mode …`
+    - `settings put global private_dns_specifier …`
+  - Options:
+    - `1` – Set **AdGuard DNS** (`dns.adguard-dns.com`).
+    - `2` – Set **AdGuard Family DNS** (`family.adguard-dns.com`) for additional blocking.
+    - `3` – Reset to **Automatic / opportunistic** (Android default).
+  - Shows current and updated Private DNS mode/host so users can verify what’s applied.
+  - Respects ROMs where `settings` is missing by gracefully exiting with a message instead of breaking.
+
+
 ## v0.5.0 🚀 (Major bug Fixed + New feature)
 -Fixed the logic bugs for disabled list caching issue
 - Added `CN_bloat-list.list` reference file under `/sdcard/debloater`:
