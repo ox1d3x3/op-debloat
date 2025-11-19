@@ -1,7 +1,7 @@
 # Changelog – Debloater (Oppo/ColorOS CN) by Ox1d3x3
 
-## v0.5.0 🚀 (Major Fixed update - Please UPDATE)
--Fixed the disabled list caching issue
+## v0.5.0 🚀 (Major bug Fixed + New feature)
+-Fixed the logic bugs for disabled list caching issue
 - Added `CN_bloat-list.list` reference file under `/sdcard/debloater`:
   - Categorised CN bloat by sections (Ads & Store, CN Browser/Web, CN Media & Extras, Ecosystem & Services, Breeno/AI).
   - Intended as a master reference so users can copy package names into `disable.list`, `cn_ecosystem.list`, or other profiles.
