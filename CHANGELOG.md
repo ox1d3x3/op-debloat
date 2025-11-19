@@ -1,3 +1,43 @@
+# Changelog – Debloater (Oppo/ColorOS CN) by Ox1d3x3
+
+## v0.5.0 🚀 (Major Fixed update - Please UPDATE)
+-Fixed the disabled list caching issue
+- Added `CN_bloat-list.list` reference file under `/sdcard/debloater`:
+  - Categorised CN bloat by sections (Ads & Store, CN Browser/Web, CN Media & Extras, Ecosystem & Services, Breeno/AI).
+  - Intended as a master reference so users can copy package names into `disable.list`, `cn_ecosystem.list`, or other profiles.
+- Extended profile initialisation to always create `CN_bloat-list.list` on first run if missing.
+- Improved install-time script:
+  - Now reads device model (`ro.product.model` / `ro.product.device`) and Android release (`ro.build.version.release`) and prints them during flashing.
+- Updated metadata to `version=v0.5.0`, `versionCode=500` and clarified OTA-safe, systemless design in `module.prop`.
+
+## v0.4.10
+- Reworked list-based operations to match the behaviour of hardcoded flows:
+  - Introduced `build_pkg_list_from_file()` to sanitise `.list` files (strip comments, Windows `\r`, extra whitespace, blank lines).
+  - Switched from `while read` loops to `for pkg in $pkg_list` using a space-flattened list, avoiding hangs and mis-parsing on some Android shells.
+- Unified disable/enable logic:
+  - `apply_disable_from_profile()` and `apply_enable_from_profile()` now share the same loop pattern and summary reporting as Default Optimise / Force Breeno.
+- Kept all debloating logic systemless and user-space only (no direct `/system` writes).
+
+## v0.4.9
+- Introduced structured, profile-driven debloat engine:
+  - Default Optimise Apps: hardcoded, curated ColorOS CN bloat set (ads, store, CN browser, media, ecosystem).
+  - Force Breeno Disable: hardcoded Breeno/AI package set with triple-disable (user + global + suspend).
+- Added profile auto-init under `/sdcard/debloater`:
+  - `disable.list` – default disable profile for ColorOS 16 CN.
+  - `cn_ecosystem.list` – extended ecosystem profile (user-editable).
+  - `breeno_minimal.list` – Breeno/AI package reference.
+  - `coloros16_reference.list` – documentation-only reference list.
+  - `enabled.list` – user-maintained restore helper.
+  - `disabled.list` – dynamic log of packages actually disabled by the module.
+- Implemented tracking helpers:
+  - `record_disabled_pkg()` appends successfully disabled packages to `disabled.list` (no duplicates).
+  - `record_enabled_pkg()` appends successfully enabled packages to `enabled.list`.
+- Added debug logging:
+  - `debloater_debug.log` in `/sdcard/debloater` capturing each pm/cmd call, return codes, and profile processing for troubleshooting.
+- New main menu layout focusing on:
+  - Default optimise, profile-based debloat/restore, full restore, package listing, and basic update stub.
+
+
 ## v0.4.0 – Major Upgrade (Recommended Update)
 🚀 New Features
 
