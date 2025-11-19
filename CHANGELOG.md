@@ -4,7 +4,7 @@
 
 ### Added
 - **AdGuard DNS (Private DNS helper)**  
-  - New main menu option: `9. AdGuard DNS (Private DNS helper)`.
+  - New main menu option: `8. AdGuard DNS (Private DNS helper)`.
   - Uses Android’s global Private DNS settings via the `settings` tool:
     - `settings put global private_dns_mode …`
     - `settings put global private_dns_specifier …`
