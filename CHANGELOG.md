@@ -1,5 +1,31 @@
 # Changelog – Debloater (Oppo/ColorOS CN) by Ox1d3x3
 
+## v0.6.2 🚀 – Universal Root Manager Compatibility
+
+### Added
+- **Universal boot-time permission & fallback execution fix**
+  - Ensures the `debloater` binary is executable on every boot (`chmod 0755`) across common module locations:
+    - `/data/adb/modules/debloater_systemless_x1/system/bin/debloater` (Magisk / compat)
+    - `/data/adb/ksu/modules/debloater_systemless_x1/system/bin/debloater` (KernelSU / KSU Next)
+    - `/data/adb/apatch/modules/debloater_systemless_x1/system/bin/debloater` (APatch, best-effort)
+  - Creates a **PATH-independent fallback launcher** at:
+    - `/data/local/tmp/debloater`
+  - Optionally installs a helper copy to:
+    - `/data/local/bin/debloater` (only if `/data/local/bin` exists)
+
+- **Root manager detection (best-effort) for diagnostics**
+  - Displays an inferred `RootMgr` value in the terminal banner to help identify the active root environment.
+
+### Fixed
+- **Resolved `debloater: inaccessible or not found`** issues seen on certain root managers/compat layers (notably SukiSU Ultra / Magisk-compat installs) where install-time `set_perm` may not apply correctly.
+
+### Notes
+- No changes were made to debloat/restore logic, package lists, or menu workflows.
+- Module remains systemless and OTA-safe; changes are limited to execution reliability across root managers.
+
+
+
+
 ## v0.6.0 🚀 (AdGuard-DNS added + optimise the code)
 
 ### Added
