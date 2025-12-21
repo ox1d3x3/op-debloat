@@ -1,12 +1,65 @@
 #!/system/bin/sh
 # Debloater - Oppo/ColorOS (CN) by Ox1d3x3
-# Version v0.6.0
+# Version v0.6.2
 
 MOD_NAME="Debloater - Oppo/ColorOS (CN) by Ox1d3x3"
-MOD_VER="v0.6.0"
+MOD_VER="v0.6.2"
 LIST_DIR="/sdcard/debloater"
 DEBUG_LOG="$LIST_DIR/debloater_debug.log"
 MODULE_ID="debloater_systemless_x1"
+
+# Root manager hint (best-effort; used for debugging only)
+detect_root_manager() {
+  # KernelSU
+  if command -v ksu >/dev/null 2>&1 || [ -d /data/adb/ksu ] || [ -d /data/adb/ksu/modules ]; then
+    echo "KernelSU"
+    return
+  fi
+  # APatch (best-effort paths)
+  if [ -d /data/adb/apatch ] || [ -d /data/adb/apatch/modules ] || command -v apd >/dev/null 2>&1; then
+    echo "APatch"
+    return
+  fi
+  # Magisk (incl. forks / compatibility layers)
+  if command -v magisk >/dev/null 2>&1 || [ -d /data/adb/magisk ] || [ -f /data/adb/magisk.db ]; then
+    echo "Magisk/Compat"
+    return
+  fi
+  # SukiSU (best-effort)
+  if [ -d /data/adb/sukisu ] || command -v sukisu >/dev/null 2>&1; then
+    echo "SukiSU/Compat"
+    return
+  fi
+  echo "Unknown"
+}
+
+# Resolve a runnable debloater path if PATH/exec perms are broken
+resolve_debloater_path() {
+  # Prefer /system/bin when present
+  if [ -x /system/bin/debloater ]; then
+    echo "/system/bin/debloater"
+    return
+  fi
+  # Common module paths
+  if [ -x /data/adb/modules/debloater_systemless_x1/system/bin/debloater ]; then
+    echo "/data/adb/modules/debloater_systemless_x1/system/bin/debloater"
+    return
+  fi
+  if [ -x /data/adb/ksu/modules/debloater_systemless_x1/system/bin/debloater ]; then
+    echo "/data/adb/ksu/modules/debloater_systemless_x1/system/bin/debloater"
+    return
+  fi
+  if [ -x /data/adb/apatch/modules/debloater_systemless_x1/system/bin/debloater ]; then
+    echo "/data/adb/apatch/modules/debloater_systemless_x1/system/bin/debloater"
+    return
+  fi
+  # Boot-fallback copy (created by hotfix scripts)
+  if [ -x /data/local/tmp/debloater ]; then
+    echo "/data/local/tmp/debloater"
+    return
+  fi
+  echo ""
+}
 
 ###############################################################################
 # Basic helpers
@@ -243,6 +296,9 @@ print_banner() {
   ANDROID="$(getprop ro.build.version.release 2>/dev/null)"
   [ -z "$ANDROID" ] && ANDROID="Unknown"
 
+  ROOTMGR="$(detect_root_manager 2>/dev/null)"
+  [ -z "$ROOTMGR" ] && ROOTMGR="Unknown"
+
   clear 2>/dev/null
   cat <<EOF
 ====================================================
@@ -278,7 +334,8 @@ record_disabled_pkg() {
     echo "# NAME: disabled" >"$LIST_DIR/disabled.list"
   fi
   if ! grep -qx "$pkg" "$LIST_DIR/disabled.list" 2>/dev/null; then
-    printf '%s\n' "$pkg" >>"$LIST_DIR/disabled.list"
+    printf '%s
+' "$pkg" >>"$LIST_DIR/disabled.list"
   fi
 }
 
@@ -290,7 +347,8 @@ record_enabled_pkg() {
     echo "# NAME: enabled" >"$LIST_DIR/enabled.list"
   fi
   if ! grep -qx "$pkg" "$LIST_DIR/enabled.list" 2>/dev/null; then
-    printf '%s\n' "$pkg" >>"$LIST_DIR/enabled.list"
+    printf '%s
+' "$pkg" >>"$LIST_DIR/enabled.list"
   fi
 }
 
@@ -375,7 +433,7 @@ enable_pkg_triple() {
   else
     echo " - pm enable --user 0 FAILED"
   fi
-  dbg("ENABLE_ACT pm_enable_user rc=$rc_eu pkg='$pkg'")
+  dbg "ENABLE_ACT pm_enable_user rc=$rc_eu pkg='$pkg'"
 
   cmd package unsuspend --user 0 "$pkg" >/dev/null 2>&1
   rc_u=$?
@@ -807,8 +865,8 @@ main_menu() {
     echo "  5. Full Restore (Use disabled list / default optimised apps to restore)"
     echo "  6. List All installed Packages"
     echo "  7. List all disabled packages"
-    echo "  8. Check updates"
-    echo "  9. AdGuard DNS (Private DNS helper)"
+    echo "  8. AdGuard DNS (Private DNS helper)"
+    echo "  9. Check updates"
     echo "  0. Exit"
     echo
     printf 'Choice: '
@@ -822,8 +880,8 @@ main_menu() {
       5) full_restore_action;     pause ;;
       6) list_all_packages;       pause ;;
       7) list_disabled_packages;  pause ;;
-      8) check_updates_action;    pause ;;
-      9) adguard_dns_menu;        pause ;;
+      8) adguard_dns_menu;        pause ;;
+      9) check_updates_action;    pause ;;
       0) echo "Exit."; exit 0 ;;
       *) echo "Invalid choice."; pause ;;
     esac

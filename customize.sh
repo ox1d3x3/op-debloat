@@ -10,7 +10,7 @@ ANDROID="$(getprop ro.build.version.release 2>/dev/null)"
 
 ui_print "===================================================="
 ui_print " Debloater - Oppo/ColorOS (CN) by Ox1d3x3"
-ui_print " Version v0.6.0"
+ui_print " Version v0.6.2"
 ui_print " Github: @ox1d3x3"
 ui_print "                   __   __  __"
 ui_print "                  \\ \\ / / /_ |"
