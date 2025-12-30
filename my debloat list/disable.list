@@ -1,0 +1,27 @@
+# NAME: disable
+# Default disable set for ColorOS 16 (CN).
+
+# Ads & store
+com.opos.ads
+
+# CN browser
+com.heytap.browser
+com.coloros.browser
+
+# CN media & extras
+com.heytap.music
+com.heytap.reader
+com.heytap.pictorial
+com.coloros.video
+com.coloros.karaoke
+andes.oplus.documentsreader
+
+# Oppo ecosystem (consumer extras)
+com.heytap.vip
+com.heytap.yoli
+com.oppo.ctautoregist
+com.oplus.contentportal
+com.oplus.pay
+com.oplus.omoji
+com.heytap.cloud
+com.heytap.tas

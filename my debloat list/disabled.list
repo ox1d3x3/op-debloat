@@ -1,0 +1,26 @@
+# NAME: disabled
+# Auto-generated list of packages that this module has actually disabled.
+# Used for safe full restore.
+com.heytap.speechassist
+com.oplus.ovoicemanager
+com.oplus.ovoicemanager.wakeup
+com.oplus.aicall
+com.oplus.aiwriter
+com.oplus.aiwidgets
+com.oplus.aiunit
+com.oplus.obrain
+com.oplus.deepthinker
+com.oplus.metis
+com.oplus.matrix
+com.opos.ads
+com.heytap.browser
+com.heytap.pictorial
+com.coloros.video
+com.coloros.karaoke
+com.heytap.vip
+com.heytap.yoli
+com.oppo.ctautoregist
+com.oplus.contentportal
+com.oplus.pay
+com.oplus.omoji
+com.heytap.cloud
