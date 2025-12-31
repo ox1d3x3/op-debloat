@@ -1,5 +1,29 @@
 # Changelog – Debloater (Oppo/ColorOS CN) by Ox1d3x3
 
+## v0.9.4 🚀 - Added Webui for Quick optimisation from root manager
+
+### WebUI
+
+  Added: Full Restore option in WebUI.
+
+  Full Restore behavior (hard-coded):
+
+  Re-enables all apps disabled by Default Optimise list.
+
+  Re-enables all apps disabled by Breeno Disable (full Breeno suite).
+
+  Runs in the same stable flow as Default Optimise (no list detection, no extra menus).
+
+### Stability / UX
+
+  Simplified WebUI menu to keep only the reliable actions.
+
+  Kept the clean layout, logo header, and version display.
+
+  Improved execution consistency by avoiding large output/list parsing that caused freezes.
+
+
+
 ## v0.6.2 🚀 – Universal Root Manager Compatibility
 
 ### Added
