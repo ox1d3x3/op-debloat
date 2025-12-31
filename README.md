@@ -218,15 +218,6 @@ If something behaves strangely, reproduce it then check the log for the package 
 
 ---
 
-## Changelog
-
-### v0.9.4
-- WebUI: removed “Disabled Apps (Quick Restore)” (unstable on some devices)
-- WebUI: added **Full Restore** (hard-coded restore for Default Optimise + Breeno suite)
-- Kept WebUI focused on stable actions
-
----
-
 ## Disclaimer
 
 This tool is provided “as is”, without warranty. Debloating always has risk.
