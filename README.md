@@ -1,6 +1,6 @@
 <p align="center">
   <!-- Put your logo in the repo at: assets/logo.png -->
-  <img src="assets/logo.png" alt="Debloater by X1" width="260" />
+  <img src="assets/logo.png" alt="Debloater by X1" width="460" />
 </p>
 
 <h1 align="center">Debloater by X1</h1>
