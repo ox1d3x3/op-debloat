@@ -1,6 +1,6 @@
 <p align="center">
   <!-- Put your logo in the repo at: assets/logo.png -->
-  <img src="assets/logo.png" alt="Debloater by X1" width="140" />
+  <img src="assets/logo.png" alt="Debloater by X1" width="260" />
 </p>
 
 <h1 align="center">Debloater by X1</h1>
@@ -15,9 +15,11 @@
   <img alt="Root" src="https://img.shields.io/badge/Root-Magisk%20%7C%20KernelSU-111111?style=for-the-badge" />
   <img alt="ROM" src="https://img.shields.io/badge/ROM-ColorOS%20CN-2D6BFF?style=for-the-badge" />
   <img alt="Mode" src="https://img.shields.io/badge/Mode-Systemless-111111?style=for-the-badge" />
+  <img alt="Downloads" src="https://img.shields.io/github/downloads/ox1d3x3/op-debloat/total?style=for-the-badge" />
 </p>
 
 <p align="center">
+  <a href="https://github.com/ox1d3x3/op-debloat/releases">Releases</a> •
   <a href="#features">Features</a> •
   <a href="#requirements">Requirements</a> •
   <a href="#installation">Installation</a> •
@@ -215,15 +217,6 @@ If something behaves strangely, reproduce it then check the log for the package 
 - If that happens, re-run:
   - Default Optimise
   - Force Breeno Disable
-
----
-
-## Changelog
-
-### v0.9.4
-- WebUI: removed “Disabled Apps (Quick Restore)” (unstable on some devices)
-- WebUI: added **Full Restore** (hard-coded restore for Default Optimise + Breeno suite)
-- Kept WebUI focused on stable actions
 
 ---
 
