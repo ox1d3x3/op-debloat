@@ -1,9 +1,16 @@
 #!/system/bin/sh
 # Debloater - Oppo/ColorOS (CN) by Ox1d3x3
-# Version v0.6.2
+# Version v0.9.4
 
 MOD_NAME="Debloater - Oppo/ColorOS (CN) by Ox1d3x3"
-MOD_VER="v0.6.2"
+MID="debloater_systemless_x1"
+# Read version from module.prop if possible (keeps WebUI/terminal consistent)
+MOD_VER=""
+for base in /data/adb/modules /data/adb/ksu/modules /data/adb/apatch/modules; do
+  p="$base/${MID}/module.prop"
+  if [ -f "$p" ]; then MOD_VER="$(grep -m1 '^version=' "$p" 2>/dev/null | cut -d= -f2-)"; break; fi
+done
+[ -z "$MOD_VER" ] && MOD_VER="v0.9.4"
 LIST_DIR="/sdcard/debloater"
 DEBUG_LOG="$LIST_DIR/debloater_debug.log"
 MODULE_ID="debloater_systemless_x1"
@@ -741,19 +748,72 @@ full_restore_action() {
   echo
   echo "Full Restore"
   echo "------------"
-  echo "This will attempt to restore all packages disabled by this module"
-  echo "based on disabled.list (with a fallback to disable.list if empty)."
+  echo "This will restore ALL packages affected by:"
+  echo " - Default Optimise"
+  echo " - Breeno Disable (full suite)"
   echo
 
-  if [ -s "$LIST_DIR/disabled.list" ]; then
-    profile="$LIST_DIR/disabled.list"
-    echo "Using disabled.list for restore..."
-  else
-    profile="$LIST_DIR/disable.list"
-    echo "disabled.list is empty; using disable.list instead..."
-  fi
+  # Union of both action lists (hard-coded)
+  restore_pkgs="
+com.opos.ads
+com.heytap.market
+com.heytap.browser
+com.coloros.browser
+com.heytap.music
+com.heytap.reader
+com.heytap.pictorial
+com.coloros.video
+com.coloros.karaoke
+andes.oplus.documentsreader
+com.heytap.accessory
+com.heytap.mydevices
+com.heytap.vip
+com.heytap.yoli
+com.oppo.ctautoregist
+com.oplus.contentportal
+com.oplus.pay
+com.oplus.omoji
+com.oplus.ocar
+com.heytap.opluscarlink
 
-  apply_enable_from_profile "$profile"
+com.heytap.speechassist
+com.oplus.ovoicemanager
+com.oplus.ovoicemanager.wakeup
+com.oplus.aicall
+com.oplus.aiwriter
+com.oplus.aiwidgets
+com.oplus.aiunit
+com.oplus.obrain
+com.oplus.deepthinker
+com.oplus.metis
+com.oplus.matrix
+com.oplus.atlas
+"
+
+  total=0
+  enabled=0
+  skipped=0
+  failed=0
+
+  for pkg in $restore_pkgs; do
+    [ -z "$pkg" ] && continue
+    total=$((total + 1))
+    echo ">>> $pkg"
+    enable_pkg_triple "$pkg"
+    case "$?" in
+      0) enabled=$((enabled + 1));;
+      2) skipped=$((skipped + 1));;
+      *) failed=$((failed + 1));;
+    esac
+    echo
+  done
+
+  echo "Full Restore summary:"
+  echo "  targets      : $total"
+  echo "  enabled      : $enabled"
+  echo "  skipped      : $skipped"
+  echo "  unknown/fail : $failed"
+  echo
 }
 
 list_all_packages() {
@@ -862,7 +922,7 @@ main_menu() {
     echo "  2. Disable Packages (Manual using disable or disabled list)"
     echo "  3. Force Breeno Disable (Disable all Breeno AI packages)"
     echo "  4. Restore Packages (Manual restore from enable or enabled list)"
-    echo "  5. Full Restore (Use disabled list / default optimised apps to restore)"
+    echo "  5. Full Restore (Restore Default Optimise + Breeno suite)"
     echo "  6. List All installed Packages"
     echo "  7. List all disabled packages"
     echo "  8. AdGuard DNS (Private DNS helper)"
@@ -887,6 +947,80 @@ main_menu() {
     esac
   done
 }
+
+###############################################################################
+# CLI entry (non-interactive)
+#   debloater --default
+#   debloater --breeno
+#   debloater --dns adguard|family|auto
+###############################################################################
+
+cli_run() {
+  case "$1" in
+    --default|default)
+      default_optimize_action
+      return 0
+      ;;
+    --breeno|breeno)
+      force_breeno_action
+      return 0
+      ;;
+    --full-restore|--fullrestore|full-restore|fullrestore)
+      full_restore_action
+      return 0
+      ;;
+    --dns|dns)
+      # default: adguard
+      mode="${2:-adguard}"
+      case "$mode" in
+        adguard|1)
+          echo "Setting Private DNS to AdGuard (dns.adguard-dns.com)..."
+          settings put global private_dns_mode hostname >/dev/null 2>&1
+          settings put global private_dns_specifier "dns.adguard-dns.com" >/dev/null 2>&1
+          ;;
+        family|2)
+          echo "Setting Private DNS to AdGuard Family (family.adguard-dns.com)..."
+          settings put global private_dns_mode hostname >/dev/null 2>&1
+          settings put global private_dns_specifier "family.adguard-dns.com" >/dev/null 2>&1
+          ;;
+        auto|reset|3)
+          echo "Resetting Private DNS to Automatic (opportunistic)..."
+          settings put global private_dns_mode opportunistic >/dev/null 2>&1
+          settings put global private_dns_specifier "" >/dev/null 2>&1
+          ;;
+        *)
+          echo "Unknown DNS mode: $mode"
+          echo "Valid: adguard | family | auto"
+          return 2
+          ;;
+      esac
+      echo
+      new_mode="$(settings get global private_dns_mode 2>/dev/null)"
+      new_spec="$(settings get global private_dns_specifier 2>/dev/null)"
+      echo "Private DNS mode : ${new_mode:-'(unset)'}"
+      echo "Private DNS host : ${new_spec:-'(none)'}"
+      return 0
+      ;;
+    --help|-h|help)
+      echo "Debloater by Ox1d3x3 ($MOD_VER)"
+      echo "Usage:"
+      echo "  debloater --default"
+      echo "  debloater --breeno"
+      echo "  debloater --full-restore"
+      echo "  debloater --dns adguard|family|auto"
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+if [ $# -gt 0 ]; then
+  ensure_root
+  init_profiles
+  if cli_run "$@"; then
+    exit 0
+  fi
+fi
 
 ###############################################################################
 # Entry

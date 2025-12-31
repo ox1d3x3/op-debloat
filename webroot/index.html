@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Debloater V0.9.4</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="brand">
+        <img class="logo-img" src="logo.png" alt="Debloater logo" />
+        <div class="brand-text">
+          <div class="title">Debloater V0.9.4</div>
+        </div>
+      </div>
+
+<div class="pills" id="pills">
+        <div class="pill"><span class="k">Version</span><span class="v" id="ver">…</span></div>
+        <div class="pill"><span class="k">Device</span><span class="v" id="dev">…</span></div>
+        <div class="pill"><span class="k">Android</span><span class="v" id="and">…</span></div>
+        <div class="pill"><span class="k">Root</span><span class="v" id="root">…</span></div>
+        <div class="pill"><span class="k">Disabled</span><span class="v" id="dis">…</span></div>
+      </div>
+    </header>
+
+    <main class="main">
+      <section class="cards" id="cardsMain">
+        <div class="card">
+          <div class="card-h">
+            <div class="card-t">1) Default Optimise</div>
+            <div class="card-d">Disable a curated set of ColorOS CN bloat (safe defaults).</div>
+          </div>
+          <div class="card-a">
+            <button class="btn primary" id="runDefault">Run</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h">
+            <div class="card-t">2) Breeno Disable</div>
+            <div class="card-d">Force-disable Breeno assistant related packages (where present).</div>
+          </div>
+          <div class="card-a">
+            <button class="btn primary" id="runBreeno">Run</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h">
+            <div class="card-t">3) DNS Set</div>
+            <div class="card-d">Set Android Private DNS (quick presets).</div>
+          </div>
+          <div class="card-a split">
+            <select class="select" id="dnsMode">
+              <option value="adguard">AdGuard (dns.adguard-dns.com)</option>
+              <option value="family">AdGuard Family (family.adguard-dns.com)</option>
+              <option value="auto">Automatic (reset)</option>
+            </select>
+            <button class="btn primary" id="runDns">Run</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h">
+            <div class="card-t">4) Full Restore</div>
+            <div class="card-d">Re-enable all packages affected by Default Optimise + Breeno Disable (hard-coded).</div>
+          </div>
+          <div class="card-a">
+            <button class="btn primary" id="runFullRestore">Run</button>
+          </div>
+        </div>
+
+        <div class="card note">
+          <div class="card-h">
+            <div class="card-t">Need more options?</div>
+            <div class="card-d">
+              For custom profiles, manual disable/restore, and advanced controls use <b>Termux</b>:
+              <div class="code">su<br/>debloater</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="output" id="outputMain">
+        <div class="output-h">
+          <div class="output-t">Output</div>
+          <div class="output-a">
+            <button class="btn" id="copyOut">Copy</button>
+            <button class="btn" id="clearOut">Clear</button>
+          </div>
+        </div>
+        <pre class="output-box" id="out">(ready)</pre>
+      </section>
+
+      
+    </main>
+
+    <footer class="footer">
+      <div class="footer-t">Debloater V0.9.4</div>
+    </footer>
+  </div>
+
+  <script type="module" src="app.v0904.mjs"></script>
+  <script nomodule src="app.v0904.legacy.js"></script>
+</body>
+</html>

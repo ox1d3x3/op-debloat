@@ -1,7 +1,7 @@
 id=debloater_systemless_x1
 name=Debloater - Oppo/ColorOS (CN) by Ox1d3x3
-version=v0.6.2
-versionCode=602
+version=0.9.4
+versionCode=904
 author=Ox1d3x3
-description=Systemless Oppo/ColorOS CN debloater with Default Optimise, Breeno AI triple-disable, profile-based control, CN_bloat-list reference and AdGuard Private DNS helper, and safe restore tracking. Android 16 / Magisk / KernelSU compatible.
+description=Simple WebUI (Default Optimise, Breeno Disable, DNS) + Full Restore (re-enable Default Optimise + Breeno suite). Optional install-time optimise prompt. For advanced lists/restore use Termux terminal.
 updateJson=https://raw.githubusercontent.com/ox1d3x3/op-debloat/main/update.json
